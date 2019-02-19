@@ -6,7 +6,6 @@ defineModule(sim, list(
   authors = c(person("Tati", "Micheletti", email = "tati.micheletti@gmail.com", role = c("aut", "cre")),
               person("Frances", "Stewart", email = "frances.stewart@canada.ca", role = c("aut", "cre")),
               person("Eliot", "McIntire", email = "Eliot.McIntire@canada.ca", role = c("aut", "cre"))),
-  
   childModules = character(0),
   version = list(SpaDES.core = "0.2.5", caribouPopGrowthModel = "0.0.1"),
   spatialExtent = raster::extent(rep(NA_real_, 4)),
@@ -24,10 +23,7 @@ defineModule(sim, list(
                  sourceURL = "https://drive.google.com/open?id=1LUxoY2-pgkCmmNH5goagBp3IMpj6YrdU"),
     expectsInput(objectName = "caribouStudyArea", objectClass = "SpatialPolygonsDataFrame", 
                  desc = "Shapefile containing the spatial description of the caribout study areas", 
-                 sourceURL = "https://drive.google.com/open?id=1ZaFsXPRsGOj69nyVv3SDNyT7qTHkX2kU"),
-    expectsInput(objectName = "caribouData", objectClass = "data.table", 
-                 desc = "Data containing recruitment and other pop covariates", 
-                 sourceURL = "https://drive.google.com/open?id=1SOimSD2jehRxV-SbMmgLUh3W5yStwhdq")
+                 sourceURL = "https://drive.google.com/open?id=1ZaFsXPRsGOj69nyVv3SDNyT7qTHkX2kU")
   ),
   outputObjects = bind_rows(
     createsOutput(objectName = "predictedCaribou", objectClass = "data.table", 
@@ -41,9 +37,9 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     init = {
       
       # schedule future event(s)
-      sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "createStatisticalRelationship")
+      sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribous")
     },
-    createStatisticalRelationship = {
+    growingCaribous = {
       browser()
       
     },
