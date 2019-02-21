@@ -46,7 +46,13 @@ defineModule(sim, list(
     createsOutput(objectName = "currentPop", objectClass = "numeric", 
                   desc = "Caribou population size in the study area. Is updated every time step"),
     createsOutput(objectName = "plotCaribou", objectClass = "ggplot2", 
-                  desc = "Caribou population size through time")
+                  desc = "Caribou population size through time"),
+    createsOutput(objectName = "DH_Tot", objectClass = "numeric", 
+                  desc = paste0("DH_Tot is the total disturbance in the area in percentage.",
+                                " If not provided, it is created from sim$rstCurrentBurn coming from scfmSpread")),
+    createsOutput(objectName = "disturbanceMaps", objectClass = "list", 
+                  desc = paste0("raster list of disturbance (burn as of now) maps per year.",
+                                " Should at some point be genrated by the fire model (i.e. scfmSpread)"))
   )
 ))
 
@@ -63,12 +69,23 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "caribouPopGrowthModel", "plot") 
     },
     growingCaribou = {
-
+      
+      if (all(!suppliedElsewhere("DH_Tot", sim), 
+              !suppliedElsewhere("rstCurrentBurn", sim))){
+        message(crayon::red(paste0("Disturbance total information was not generated.", 
+                                   "\nGenerating DUMMY DATA to test the module.")))
+        params(sim)$.useDummyData <- TRUE
+      }
       if (params(sim)$.useDummyData == TRUE){
         out <- summary(sim$caribouModels$M3)
         sim$DH_Tot <- data.table::data.table(DH_Tot = rnorm(n = 1, 
                                                             mean = abs(out$coefficients[2, "Estimate"]), 
                                                             sd = abs(out$coefficients[2, "Std. Error"])))
+      } else {
+        tbl <- table(sim$rstCurrentBurn[])
+        sim$DH_Tot <- as.numeric(100*(tbl['1']/(tbl['0']+tbl['1'])))
+        sim$disturbanceMaps <- list()
+        sim$disturbanceMaps[[paste0("Year", time(sim))]] <- sim$rstCurrentBurn
       }
       # Make sure this is being created every year based on dist map (fire)
       sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
@@ -142,14 +159,9 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   }
   if (!suppliedElsewhere("currentPop", sim)){
     message(crayon::yellow(paste0("Initial population size not provided.", 
-                               "\nGenerating DUMMY DATA to test the module (n = 200).")))
-    sim$currentPop <- 200
+                               "\nGenerating a mean population size for this study area (n = 353).")))
+    sim$currentPop <- 353
       
-  }
-  if (!suppliedElsewhere("DH_Tot", sim)){
-    message(crayon::red(paste0("Disturbance total information was not generated.", 
-                   "\nGenerating DUMMY DATA to test the module.")))
-    params(sim)$.useDummyData <- TRUE
   }
   if (!suppliedElsewhere("adultFemaleSurv", sim)){
     message(crayon::yellow(paste0("No LPU specific values for the female survival is available for NWT.", 
