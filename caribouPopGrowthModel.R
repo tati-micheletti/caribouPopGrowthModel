@@ -30,16 +30,16 @@ defineModule(sim, list(
     expectsInput(objectName = "caribouModels", objectClass = "list", 
                  desc = "List with model objects. Default is M3 (ECCC 2011, Table 56) downloaded if needed.", 
                  sourceURL = "https://drive.google.com/open?id=1jWOr5ZyVRobw8Wo_9z2UnbI48IufuyJc"),
-    expectsInput(objectName = "DH_Tot", objectClass = "data.table", 
-                 desc = "Table with years and total disturbance per year to be predicted", # MAYBE MAKE SEVERAL REPLICATIONS, TAKE THE MEAN?
-                 sourceURL = ""), # prepInput it once done
     expectsInput(objectName = "currentPop", objectClass = "numeric", 
                  desc = "Caribou population size in the study area. Is updated every time step",
                  sourceURL = NA),
     expectsInput(objectName = "adultFemaleSurv", objectClass = "numeric", 
                  desc = "Caribou female survival probability in the study area. Default of 0.85",
+                 sourceURL = NA),
+    expectsInput(objectName = "rstCurrentBurn", objectClass = "RasterLayer", 
+                 desc = "Current burned map (present year)",
                  sourceURL = NA)
-  ),
+  ), 
   outputObjects = bind_rows(
     createsOutput(objectName = "predictedCaribou", objectClass = "list", 
                   desc = "Data.table that contains the total population size per year, as well as other parameters"),
