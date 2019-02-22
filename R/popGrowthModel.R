@@ -10,11 +10,19 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
     recr <- mod$fit/100 # verage propostion across 4 herds from 2008 data.
     SadF <- adultFemaleSurv # ECCC 2012 set this to 0.85, and we do not have any LPU specific values for the NWT. Therefore, I am making this same assumption
 
-    # Simple pop model
+    # Simple pop model - non-stochastic, and non
     annualGrowth <- function(N, SadF, recr) {
       newN <- N * SadF
       newN <- newN + newN * (recr / 2) # only 1/2 the calves will be female
       round(newN, 0)
+    }
+    
+    # Simple lambda model
+    annualLambda <- function(SadF, recr){
+      mortF <- (1-SadF)
+      mortR <- (1-recr)
+      newL <- (1-mortF)/(1-mortR) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006
+      round(newL, 2)
     }
     
 # For each model, extract the current currentPop if class(currentPop) == "list"
@@ -26,7 +34,7 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
                            SadF = SadF, 
                            recr = recr)
     
-    return(list(Pred = mod, Rec = recr, adultFemaleSurv = SadF, currentPopUpdated = newPop))
+    return(list(Pred = mod, Rec = recr, adultFemaleSurv = SadF, currentPopUpdated = newPop, lambda = newL))
   })
   names(predParams) <- names(caribouModels)
   return(predParams)
