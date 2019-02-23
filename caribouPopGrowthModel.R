@@ -135,7 +135,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   #                                 destinationPath = dataPath(sim), fun = "data.table::fread",
   #                                 useCloud = TRUE, cloudFolderID = cloudFolderID)
   if (!suppliedElsewhere("caribouModels", sim)){
-    sim$caribouModels <- reproducible::prepInputs(url = extractURL("caribouModels"), 
+    sim$caribouModels <- reproducible::prepInputs(url = extractURL("caribouModels"),
+                                                  targetFile = "caribouModels.rds", 
                                                   destinationPath = dataPath(sim), 
                                                   fun = "base::readRDS", 
                                                   omitArgs = c("destinationPath"))
@@ -143,7 +144,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   if (!suppliedElsewhere("currentPop", sim)){
     message(crayon::yellow(paste0("Initial population size not provided.", 
                                "\nGenerating DUMMY DATA to test the module (n = 200).")))
-    sim$currentPop <- 200
+    sim$currentPop <- 6500
       
   }
   if (!suppliedElsewhere("DH_Tot", sim)){

@@ -15,6 +15,7 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
       newN <- N * SadF
       newN <- newN + newN * (recr / 2) # only 1/2 the calves will be female
       round(newN, 0)
+      return(newN)
     }
     
     # Simple lambda model
@@ -23,6 +24,7 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
       mortR <- (1-recr)
       newL <- (1-mortF)/(1-mortR) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006
       round(newL, 2)
+      return(newL)
     }
     
 # For each model, extract the current currentPop if class(currentPop) == "list"
@@ -34,7 +36,10 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
                            SadF = SadF, 
                            recr = recr)
     
-    return(list(Pred = mod, Rec = recr, adultFemaleSurv = SadF, currentPopUpdated = newPop, lambda = newL))
+    newLambda <- annualLambda(SadF = SadF, 
+                           recr = recr)
+    
+    return(list(Pred = mod, Rec = recr, adultFemaleSurv = SadF, currentPopUpdated = newPop, lambda = newLambda))
   })
   names(predParams) <- names(caribouModels)
   return(predParams)

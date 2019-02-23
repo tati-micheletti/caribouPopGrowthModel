@@ -10,7 +10,10 @@ output: pdf_document
 ```{r module_usage}
 library(SpaDES)
 
-setPaths(modulePath = file.path("C:/Users/tmichele/GitHub"))
+setPaths(modulePath = file.path("Z:/GitHub"),
+         inputPath = file.path("Z:/GitHub"),
+         outputPath = file.path("Z:/GitHub"),
+         cachePath = file.path("Z:/GitHub"))
 getPaths() # shows where the 4 relevant paths are
 
 times <- list(start = 0, end = 10)

@@ -3,13 +3,19 @@ plotCaribou <- function(startTime = P(sim)$.plotInitialTime,
                         predictedCaribou = sim$predictedCaribou){
   
   reproducible::Require(ggplot2) # [ FIX ] When we develop the rest of the models: need to lapply through
-  
   orderedRasterList <- lapply(X = 1:length(predictedCaribou), FUN = function(index){
-    sbset <- unlist(lapply(predictedCaribou[[index]], tail, n=1L), use.names = FALSE)
+    sbset <- lapply(predictedCaribou[[index]], FUN = function(pop){
+      resp <- list(population = pop[["currentPopUpdated"]], lambda = pop[["newLambda"]])
+      return(resp)
+    })
+  
     return(sbset)
   })
   
-  popTable <- unlist(lapply(orderedRasterList, tail, n = 1L))
+  popTable <- unlist(lapply(orderedRasterList, FUN = function(pop2) {
+    resp <- list(population = pop2[["currentPopUpdated"]], lambda = pop2[["newLambda"]])
+    return(popTable)
+  }))
 
   populationCaribou <- data.frame(Time = as.integer(startTime:currentTime),
                                   CaribouPopulationSize = as.integer(popTable))
