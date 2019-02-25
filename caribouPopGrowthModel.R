@@ -16,9 +16,12 @@ defineModule(sim, list(
   reqdPkgs = list("data.table", "ggplot2"),
   parameters = rbind(
     defineParameter(".useCache", "logical", FALSE, NA, NA, "Should this entire module be run with caching activated?"),
+    defineParameter("meanFire", "numeric", 30.75, NA, NA, "Mean cummulative fire from ECCC Scientific report 2011"),
+    defineParameter("sdFire", "numeric", 10.6, NA, NA, "SD cummulative fire from ECCC Scientific report 2011"),
     defineParameter(".plotInitialTime", "numeric", start(sim) + 1, NA, NA, "inital plot time"),
     defineParameter(".plotTimeInterval", "numeric", 1, NA, NA, "Interval of plotting time"),
-    defineParameter(".useDummyData", "logical", FALSE, NA, NA, "Should use dummy data? Automatically set")
+    defineParameter(".useDummyData", "logical", FALSE, NA, NA, "Should use dummy data? Automatically set"),
+    defineParameter("recoveryTime", "numeric", 40, NA, NA, "Time to recover the forest enough for caribou")
   ),
   inputObjects = bind_rows(
     # expectsInput(objectName = "studyArea", objectClass = "SpatialPolygonsDataFrame", 
@@ -36,9 +39,9 @@ defineModule(sim, list(
     expectsInput(objectName = "adultFemaleSurv", objectClass = "numeric", 
                  desc = "Caribou female survival probability in the study area. Default of 0.85",
                  sourceURL = NA),
-    expectsInput(objectName = "rstCurrentBurn", objectClass = "RasterLayer", 
-                 desc = "Current burned map (present year)",
-                 sourceURL = NA)
+    expectsInput(objectName = "cumulBurn", objectClass = "RasterLayer",
+                  desc = paste0("raster list of cummulative map (burn as of now) maps per year.",
+                                " Should at some point be genrated by the fire model (i.e. scfmSpread)"))
   ), 
   outputObjects = bind_rows(
     createsOutput(objectName = "predictedCaribou", objectClass = "list", 
@@ -50,9 +53,8 @@ defineModule(sim, list(
     createsOutput(objectName = "DH_Tot", objectClass = "numeric", 
                   desc = paste0("DH_Tot is the total disturbance in the area in percentage.",
                                 " If not provided, it is created from sim$rstCurrentBurn coming from scfmSpread")),
-    createsOutput(objectName = "disturbanceMaps", objectClass = "list", 
-                  desc = paste0("raster list of disturbance (burn as of now) maps per year.",
-                                " Should at some point be genrated by the fire model (i.e. scfmSpread)"))
+    createsOutput(objectName = "cumulBurn", objectClass = "RasterLayer",
+                 desc = paste0("raster list of cummulative map (burn as of now) maps per year."))
   )
 ))
 
@@ -62,30 +64,36 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     init = {
       
       sim$predictedCaribou <- list()
-      
+
       # schedule future event(s)
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribou")
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
       sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "caribouPopGrowthModel", "plot") 
     },
     growingCaribou = {
-      
-      if (all(!suppliedElsewhere("DH_Tot", sim), 
-              !suppliedElsewhere("rstCurrentBurn", sim))){
-        message(crayon::red(paste0("Disturbance total information was not generated.", 
-                                   "\nGenerating DUMMY DATA to test the module.")))
-        params(sim)$.useDummyData <- TRUE
-      }
       if (params(sim)$.useDummyData == TRUE){
         out <- summary(sim$caribouModels$M3)
-        sim$DH_Tot <- data.table::data.table(DH_Tot = rnorm(n = 1, 
-                                                            mean = abs(out$coefficients[2, "Estimate"]), 
-                                                            sd = abs(out$coefficients[2, "Std. Error"])))
+        if (is.null(sim$DH_Tot)){
+          sim$DH_Tot <- list(Year0 = data.frame(DH_Tot = rnorm(n = 1, mean = P(sim)$meanFire, sd = P(sim)$sdFire)))
+        } else {
+          trunc_rnorm <- function(n, mean = 0, sd = 1, lb = 0){ 
+            lb <- pnorm(lb, mean, sd) 
+            qnorm(runif(n, lb, 1), mean, sd)
+          }
+          sim$DH_Tot[[paste0("Year", time(sim))]] <- data.frame(DH_Tot = sim$DH_Tot[[paste0("Year", time(sim)-1)]] +
+                                                                              (sim$DH_Tot[[paste0("Year", time(sim)-1)]]*
+                                                                              trunc_rnorm(n = 1, mean = 0.1, sd = 0.05, lb = 0)))
+        }
       } else {
-        tbl <- table(sim$rstCurrentBurn[])
-        sim$DH_Tot <- as.numeric(100*(tbl['1']/(tbl['0']+tbl['1'])))
-        sim$disturbanceMaps <- list()
-        sim$disturbanceMaps[[paste0("Year", time(sim))]] <- sim$rstCurrentBurn
+        if (is.null(sim$DH_Tot)){
+          sim$DH_Tot <- list()
+        }
+
+        sim$DH_Tot <- getDisturbance(currentTime = time(sim),
+                                     startTime = start(sim),
+                                     endTime = end(sim),
+                                     cumulBurn = sim$cumulBurn,
+                                     recoveryTime = P(sim)$recoveryTime)
       }
       # Make sure this is being created every year based on dist map (fire)
       sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
@@ -115,7 +123,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                        currentTime = time(sim),
                                        predictedCaribou = sim$predictedCaribou)
         
-        Plot(sim$plotCaribou, title = "Caribou population dynamics", new = TRUE)
+      plot(sim$plotCaribou, title = "Caribou population dynamics", new = TRUE, 
+           ylim = c(0, max(sim$plotCaribou$data$CaribouPopulationSize) + 10))
       
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotTimeInterval, "caribouPopGrowthModel", "plot")
@@ -128,7 +137,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
 }
 
 .inputObjects <- function(sim) {
-  
   params(sim)$.useDummyData <- FALSE
   
   cloudFolderID <- "https://drive.google.com/open?id=1PoEkOkg_ixnAdDqqTQcun77nUvkEHDc0"
@@ -152,7 +160,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   #                                 destinationPath = dataPath(sim), fun = "data.table::fread",
   #                                 useCloud = TRUE, cloudFolderID = cloudFolderID)
   if (!suppliedElsewhere("caribouModels", sim)){
-    sim$caribouModels <- reproducible::prepInputs(url = extractURL("caribouModels"), 
+    sim$caribouModels <- reproducible::prepInputs(url = extractURL("caribouModels"),
+                                                  targetFile = "caribouModels.rds",
                                                   destinationPath = dataPath(sim), 
                                                   fun = "base::readRDS", 
                                                   omitArgs = c("destinationPath"))
@@ -167,6 +176,11 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     message(crayon::yellow(paste0("No LPU specific values for the female survival is available for NWT.", 
                                "\nUsing national ECCC value of 0.85.")))
     sim$adultFemaleSurv <- 0.85
+  }
+  if (!suppliedElsewhere("cumulBurn", sim)){
+    params(sim)$.useDummyData <- TRUE
+    message(crayon::red(paste0("Disturbance total information (cumulBurn) was not found.", 
+                               "\nGenerating DUMMY DATA to test the module.")))
   }
 
   return(invisible(sim))
