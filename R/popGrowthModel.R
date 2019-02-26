@@ -22,7 +22,7 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
     annualLambda <- function(SadF, recr){
       mortF <- (1-SadF)
       mortR <- (1-recr)
-      newL <- (1-mortF)/(1-mortR) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006
+      newL <- (1-mortF)/(1-mortR) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006, and Hervieux et al. 2013
       round(newL, 2)
       return(newL)
     }
