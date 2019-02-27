@@ -39,9 +39,11 @@ defineModule(sim, list(
     expectsInput(objectName = "adultFemaleSurv", objectClass = "numeric", 
                  desc = "Caribou female survival probability in the study area. Default of 0.85",
                  sourceURL = NA),
-    expectsInput(objectName = "cumulBurn", objectClass = "RasterLayer",
-                  desc = paste0("raster list of cummulative map (burn as of now) maps per year.",
-                                " Should at some point be genrated by the fire model (i.e. scfmSpread)"))
+    expectsInput(objectName = "pixelGroupMap", objectClass = "RasterLayer",
+                 desc = paste0("Map of groups of pixels that share the same info from cohortData (sp, age, biomass, etc).",
+                               " Should at some point be genrated by the fire model (i.e. scfmSpread)")),
+    expectsInput(objectName = "cohortData", objectClass = "data.table",
+                 desc = paste0("data.table with information by pixel group of sp, age, biomass, etc"))
   ), 
   outputObjects = bind_rows(
     createsOutput(objectName = "predictedCaribou", objectClass = "list", 
@@ -52,9 +54,7 @@ defineModule(sim, list(
                   desc = "Caribou population size through time"),
     createsOutput(objectName = "DH_Tot", objectClass = "numeric", 
                   desc = paste0("DH_Tot is the total disturbance in the area in percentage.",
-                                " If not provided, it is created from sim$rstCurrentBurn coming from scfmSpread")),
-    createsOutput(objectName = "cumulBurn", objectClass = "RasterLayer",
-                 desc = paste0("raster list of cummulative map (burn as of now) maps per year."))
+                                " If not provided, it is created from sim$rstCurrentBurn coming from scfmSpread"))
   )
 ))
 
@@ -63,12 +63,18 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     eventType,
     init = {
       
+      if (any(!suppliedElsewhere("cohortData", sim = sim, where = "sim"), !suppliedElsewhere("pixelGroupMap", sim))){
+        params(sim)$.useDummyData <- TRUE
+        message(crayon::red(paste0("Disturbance total information (pixelGroupMap & cohortData) was not found.", 
+                                   "\nGenerating DUMMY DATA to test the module.")))
+      }
+      
       sim$predictedCaribou <- list()
 
       # schedule future event(s)
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribou")
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
-      sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "caribouPopGrowthModel", "plot") 
+      sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot") 
     },
     growingCaribou = {
       if (params(sim)$.useDummyData == TRUE){
@@ -88,11 +94,12 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         if (is.null(sim$DH_Tot)){
           sim$DH_Tot <- list()
         }
-
+        
         sim$DH_Tot <- getDisturbance(currentTime = time(sim),
                                      startTime = start(sim),
                                      endTime = end(sim),
-                                     cumulBurn = sim$cumulBurn,
+                                     cohortData = sim$cohortData, # Has age info per pixel group
+                                     pixelGroupMap = sim$pixelGroupMap,
                                      recoveryTime = P(sim)$recoveryTime)
       }
       # Make sure this is being created every year based on dist map (fire)
@@ -119,7 +126,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     },
     plot = {
 
-        sim$plotCaribou <- plotCaribou(startTime = P(sim)$.plotInitialTime,
+        sim$plotCaribou <- plotCaribou(startTime = start(sim),
                                        currentTime = time(sim),
                                        predictedCaribou = sim$predictedCaribou)
         
@@ -176,11 +183,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     message(crayon::yellow(paste0("No LPU specific values for the female survival is available for NWT.", 
                                "\nUsing national ECCC value of 0.85.")))
     sim$adultFemaleSurv <- 0.85
-  }
-  if (!suppliedElsewhere("cumulBurn", sim)){
-    params(sim)$.useDummyData <- TRUE
-    message(crayon::red(paste0("Disturbance total information (cumulBurn) was not found.", 
-                               "\nGenerating DUMMY DATA to test the module.")))
   }
 
   return(invisible(sim))

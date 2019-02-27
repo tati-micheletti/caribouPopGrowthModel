@@ -1,4 +1,4 @@
-plotCaribou <- function(startTime = P(sim)$.plotInitialTime,
+plotCaribou <- function(startTime = start(sim),
                         currentTime = time(sim),
                         predictedCaribou = sim$predictedCaribou){
   
@@ -11,7 +11,13 @@ plotCaribou <- function(startTime = P(sim)$.plotInitialTime,
   
   popTable <- unlist(lapply(orderedRasterList, tail, n = 1L))
 
-  populationCaribou <- data.frame(Time = as.integer(startTime:currentTime),
+  if ((length(popTable) != length(startTime:currentTime)) & (startTime == 0)){
+    time <- as.integer(startTime + 1:currentTime) 
+  } else {
+    time <- as.integer(startTime:currentTime)
+    }
+  
+  populationCaribou <- data.frame(Time = time,
                                   CaribouPopulationSize = as.integer(popTable))
   quickPlot::clearPlot()
   

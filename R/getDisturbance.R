@@ -1,28 +1,29 @@
 getDisturbance <- function(currentTime = time(sim),
+                           cohortData = sim$cohortData, # Has age info per pixel group
+                           pixelGroupMap = sim$pixelGroupMap, #Map of pixel groups
                            startTime = start(sim),
                            endTime = end(sim),
-                           cumulBurn = sim$cumulBurn,
                            recoveryTime = P(sim)$recoveryTime){
-                               
+
+  reproducible::Require("raster")
+  reproducible::Require("magrittr")
+  reproducible::Require("plyr")
   originalTime <- currentTime
   if (startTime > 1){
     relEndTime <- endTime - startTime
     currentTime <- originalTime - startTime
   }
   
-  # -9999: year zero from spinnup
-  # -8888: year zero from simul. We should use the current year from simul
-  currTable <- table(cumulBurn[])
-  # We are also using 'recoveryTime - 1' because it is inclusive (i.e. length(-39:0) == 40)
-  yearsToUse <- as.character(c((currentTime-(recoveryTime-1)):currentTime))
-  yearsToUse[yearsToUse == "0"] <- "-8888"
-  vals <- currTable[yearsToUse]
-  cummFire <- sum(vals, na.rm = TRUE)
-  totPixels <- as.numeric(currTable["0"]) + cummFire
+  valPixelGroup <- data.table(pixelGroup = raster::getValues(x = pixelGroupMap)) %>% 
+    plyr::join(cohortData[, max(age), by = "pixelGroup"])
+  names(valPixelGroup)[2] <- "age"
+  ageMap <- raster::setValues(x = pixelGroupMap, values = valPixelGroup$age)
+  totPixels <- length(ageMap[!is.na(ageMap)])
+  cummFire <- length(ageMap[!is.na(ageMap) & ageMap <= recoveryTime])
   
   name <- paste0("Year", originalTime)
   value <- 100*(cummFire/totPixels)
-  DH_Tot <- list(value) 
+  DH_Tot <- list(value)
   names(DH_Tot) <- name
   # Calc is done in percentage of the area
   return(DH_Tot)
