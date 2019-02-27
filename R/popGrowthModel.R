@@ -10,7 +10,7 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
     recr <- mod$fit/100 # verage propostion across 4 herds from 2008 data.
     SadF <- adultFemaleSurv # ECCC 2012 set this to 0.85, and we do not have any LPU specific values for the NWT. Therefore, I am making this same assumption
 
-    # Simple pop model - non-stochastic, and non
+    # Simple pop model - non-stochastic, and non- density dependent
     annualGrowth <- function(N, SadF, recr) {
       newN <- N * SadF
       newN <- newN + newN * (recr / 2) # only 1/2 the calves will be female
@@ -18,7 +18,71 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
       return(newN)
     }
     
-    # Simple lambda model
+   # more complicated population model - non-stochastic, but logistic (i.e. density-dependent)
+    annualGrowthL <- function(N, SadF, recr){
+      # set intrinsic capacity for increase
+      r <- 0.10 # set to 10%. ASSUMPTION - this can change - currently obtained from Sutherland et al. (in prep) demonstrating that
+      # recruitment needs to be > 0.1 for annual population growth
+      newN<-r * N
+      # set the carrying capacity of the population
+      K <- 10000 # we know there are at most 7000 boreal caribou in NWT, but historically there were more
+      newN <- newN * (K - N)/K
+      round(newN, 0)
+      return(newN)
+    }
+    
+    #more complicated population model - ## CURRENTLY LOGISTIC, BUT NOT YET STOCHASTIC ####
+      Psurviv <- recr/2 #probability of survival from juvenile to adult, for females only
+      # from caribou/BRAT calculations (winder et al. in review):
+      # we know from maternal penning that 80% of calves survive to day 1, that adult femape conception rates are at 90%, and
+      # that 90% of calves survive from day 1 to 30
+      pregR <- 0.9 # DATA/ASSUMPTION (S. McNay pers com)
+      surv1stDay <- 0.8 # DATA/ASSUMPTION (S. McNay pers com)
+      surv30thDay <- 0.9 # DATA/ASSUMPTION (S. McNay pers com)
+      Initsurviv <- (SadF*pregR*surv1stDay*surv30thDay)  # proportion of adult females that produce a calf
+      FInitiSurviv <- Initsurviv*0.5 # proportion of these calves that are female
+      FSurviv <- FInitiSurviv - (recr/2) # prorportion of calves that survive until survey, and contribute to the cow:calf ratio
+      #########################################
+      annualGrowthS<- function(N, FSurviv) {
+        # set the carrying capacity of the population
+        K <- 10000 # we know there are at most 7000 boreal caribou in NWT, but historically there were more
+        newN <- N + (K - N*(N*FSurviv)/K)
+        N <- newN
+        return(newN)
+      }
+      
+      Nyears <- 100
+      N <- integer(Nyears)
+      N[1] <- 6500
+      for (yr in 1:Nyears) {
+        N[yr +1] <- annualGrowthS(N[yr], FSurviv)
+     }
+      print(N)
+      plot(N)
+
+### START HERE ---- ###
+      # I need to know the range of recr and SadF values in order to make this stochastic
+      # boot strap this range to generate the CV for each value
+      # then apply the CV to the population growth
+     
+    
+    #more complicated population model - stochastic and logistic (i.e. density dependent, and probability based)
+    
+# # for playing around with plots. Remove later  
+#   SadF <-0.85
+#   recr<-0.3
+#   Nyears <- 100 
+#    N <- integer(Nyears)
+#      N[1] <- 6500
+#      for (yr in 1:Nyears) {
+#       N[yr + 1] <- annualLambda(N[yr], SadF, recr)
+#     }
+#     print(N) # population size at each year, for 100 years.
+#     plot(N)
+      
+####################################################################################################################    
+    
+   # Simple lambda model (i.e. realized population growth rate)
     annualLambda <- function(SadF, recr){
       mortF <- (1-SadF)
       mortR <- (1-recr)
@@ -26,6 +90,8 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
       round(newL, 2)
       return(newL)
     }
+    
+#######################################################################################################################
     
 # For each model, extract the current currentPop if class(currentPop) == "list"
  if (class(currentPop) == "list"){

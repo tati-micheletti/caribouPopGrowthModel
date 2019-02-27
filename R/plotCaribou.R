@@ -14,7 +14,7 @@ plotCaribou <- function(startTime = P(sim)$.plotInitialTime,
   
   popTable <- unlist(lapply(orderedRasterList, FUN = function(pop2) {
     resp <- list(population = pop2[["currentPopUpdated"]], lambda = pop2[["newLambda"]])
-    return(popTable)
+    #return(popTable)
   }))
 
   populationCaribou <- data.frame(Time = as.integer(startTime:currentTime),
