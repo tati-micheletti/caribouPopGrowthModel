@@ -61,3 +61,27 @@ Description of the module outputs.
 
 Describe any anticipated linkages to other modules.
 
+# Assumptions of this module - to be stated explicitly in written reports and publications
+
+**POPULATION MODELS - output N (population size)**
+1. For all population models (MODEL OPTION 1 THROUGH 5):
+ASSUMPTION A: The statistical relationship between recruitment and the landscape described by ECCC 2012 is the correct relationship for NWT boreal caribou. (Model M3, recruitment ~ total disturbance; ECCC 2012 Table 56). This relationship was generated off of 24 data points of caribou study areas across Canada, and lacks information on study areas primarily driven by fire.
+
+ASSUMPTION B: Initial population of boreal caribou across the North West Territories Taiga Plains is 6731 individuals (James Hodgson pers. comm.; Gov NWT 2019)
+Government of the Northwest Territories. 2019. A Framework for Boreal Caribou Range Planning: Revised Draft - Appendices. Environment and Natural Resources, Government of the Northwest Territories, Yellowknife, NT. 38 + ii pp.
+
+2. For logarithmic population growth models (MODEL OPTION 4): - to do for future projects
+ASSUMPTION C: The carrying capacity of boreal caribou in the North West Territories Taiga Plains is 10,000 individuals 
+
+ASSUMPTION D: The intrinsic rate (r) of increase of boreal caribou in the North West Territories Taiga Plains is 10% (r = 0.10; Sutherland et al. in prep). Currently obtained from Sutherland et al. (in prep) demonstrating that recruitment needs to be > 0.1 for annual population growth
+
+3. For stochastic population growth models (MODEL OPTION 5 & 6): - to do for future projects
+Still to be completed
+
+
+**POPULATION GROWTH MODELS - output lambda (population growth rate)**
+1. For population growth model (MODEL OPTION 3):
+
+
+
+
