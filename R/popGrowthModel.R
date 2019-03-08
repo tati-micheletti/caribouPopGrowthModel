@@ -5,9 +5,11 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
                            startTime = start(sim),
                            adultFemaleSurv = sim$adultFemaleSurv){
   
+  message("Growing some Caribous...")
+  cummDist <- data.frame(DH_Tot = DH_Tot[[paste0("Year", currentTime)]])
   predParams <- lapply(X = names(caribouModels), FUN = function(model){
-    mod <- predict(caribouModels[[model]], newdata = DH_Tot, se = TRUE)
-    recr <- mod$fit/100 # verage propostion across 4 herds from 2008 data.
+    mod <- predict(caribouModels[[model]], newdata = cummDist, se = TRUE)
+    recr <- mod$fit/100 # average proportion across 4 herds from 2008 data.
     SadF <- adultFemaleSurv # ECCC 2012 set this to 0.85, and we do not have any LPU specific values for the NWT. Therefore, I am making this same assumption
 
 # MODEL OPTION 1

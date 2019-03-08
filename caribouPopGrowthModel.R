@@ -16,9 +16,12 @@ defineModule(sim, list(
   reqdPkgs = list("data.table", "ggplot2"),
   parameters = rbind(
     defineParameter(".useCache", "logical", FALSE, NA, NA, "Should this entire module be run with caching activated?"),
+    defineParameter("meanFire", "numeric", 30.75, NA, NA, "Mean cummulative fire from ECCC Scientific report 2011"),
+    defineParameter("sdFire", "numeric", 10.6, NA, NA, "SD cummulative fire from ECCC Scientific report 2011"),
     defineParameter(".plotInitialTime", "numeric", start(sim) + 1, NA, NA, "inital plot time"),
     defineParameter(".plotTimeInterval", "numeric", 1, NA, NA, "Interval of plotting time"),
-    defineParameter(".useDummyData", "logical", FALSE, NA, NA, "Should use dummy data? Automatically set")
+    defineParameter(".useDummyData", "logical", FALSE, NA, NA, "Should use dummy data? Automatically set"),
+    defineParameter("recoveryTime", "numeric", 40, NA, NA, "Time to recover the forest enough for caribou")
   ),
   inputObjects = bind_rows(
     # expectsInput(objectName = "studyArea", objectClass = "SpatialPolygonsDataFrame", 
@@ -30,23 +33,28 @@ defineModule(sim, list(
     expectsInput(objectName = "caribouModels", objectClass = "list", 
                  desc = "List with model objects. Default is M3 (ECCC 2011, Table 56) downloaded if needed.", 
                  sourceURL = "https://drive.google.com/open?id=1jWOr5ZyVRobw8Wo_9z2UnbI48IufuyJc"),
-    expectsInput(objectName = "DH_Tot", objectClass = "data.table", 
-                 desc = "Table with years and total disturbance per year to be predicted", # MAYBE MAKE SEVERAL REPLICATIONS, TAKE THE MEAN?
-                 sourceURL = ""), # prepInput it once done
     expectsInput(objectName = "currentPop", objectClass = "numeric", 
                  desc = "Caribou population size in the study area. Is updated every time step",
                  sourceURL = NA),
     expectsInput(objectName = "adultFemaleSurv", objectClass = "numeric", 
                  desc = "Caribou female survival probability in the study area. Default of 0.85",
-                 sourceURL = NA)
-  ),
+                 sourceURL = NA),
+    expectsInput(objectName = "pixelGroupMap", objectClass = "RasterLayer",
+                 desc = paste0("Map of groups of pixels that share the same info from cohortData (sp, age, biomass, etc).",
+                               " Should at some point be genrated by the fire model (i.e. scfmSpread)")),
+    expectsInput(objectName = "cohortData", objectClass = "data.table",
+                 desc = paste0("data.table with information by pixel group of sp, age, biomass, etc"))
+  ), 
   outputObjects = bind_rows(
     createsOutput(objectName = "predictedCaribou", objectClass = "list", 
                   desc = "Data.table that contains the total population size per year, as well as other parameters"),
     createsOutput(objectName = "currentPop", objectClass = "numeric", 
                   desc = "Caribou population size in the study area. Is updated every time step"),
     createsOutput(objectName = "plotCaribou", objectClass = "ggplot2", 
-                  desc = "Caribou population size through time")
+                  desc = "Caribou population size through time"),
+    createsOutput(objectName = "DH_Tot", objectClass = "numeric", 
+                  desc = paste0("DH_Tot is the total disturbance in the area in percentage.",
+                                " If not provided, it is created from sim$rstCurrentBurn coming from scfmSpread"))
   )
 ))
 
@@ -55,20 +63,44 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     eventType,
     init = {
       
-      sim$predictedCaribou <- list()
+      if (any(!suppliedElsewhere("cohortData", sim = sim, where = "sim"), !suppliedElsewhere("pixelGroupMap", sim))){
+        params(sim)$.useDummyData <- TRUE
+        message(crayon::red(paste0("Disturbance total information (pixelGroupMap & cohortData) was not found.", 
+                                   "\nGenerating DUMMY DATA to test the module.")))
+      }
       
+      sim$predictedCaribou <- list()
+
       # schedule future event(s)
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribou")
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
-      sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "caribouPopGrowthModel", "plot") 
+      sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot") 
     },
     growingCaribou = {
-
       if (params(sim)$.useDummyData == TRUE){
         out <- summary(sim$caribouModels$M3)
-        sim$DH_Tot <- data.table::data.table(DH_Tot = rnorm(n = 1, 
-                                                            mean = abs(out$coefficients[2, "Estimate"]), 
-                                                            sd = abs(out$coefficients[2, "Std. Error"])))
+        if (is.null(sim$DH_Tot)){
+          sim$DH_Tot <- list(Year0 = data.frame(DH_Tot = rnorm(n = 1, mean = P(sim)$meanFire, sd = P(sim)$sdFire)))
+        } else {
+          trunc_rnorm <- function(n, mean = 0, sd = 1, lb = 0){ 
+            lb <- pnorm(lb, mean, sd) 
+            qnorm(runif(n, lb, 1), mean, sd)
+          }
+          sim$DH_Tot[[paste0("Year", time(sim))]] <- data.frame(DH_Tot = sim$DH_Tot[[paste0("Year", time(sim)-1)]] +
+                                                                              (sim$DH_Tot[[paste0("Year", time(sim)-1)]]*
+                                                                              trunc_rnorm(n = 1, mean = 0.1, sd = 0.05, lb = 0)))
+        }
+      } else {
+        if (is.null(sim$DH_Tot)){
+          sim$DH_Tot <- list()
+        }
+        
+        sim$DH_Tot <- getDisturbance(currentTime = time(sim),
+                                     startTime = start(sim),
+                                     endTime = end(sim),
+                                     cohortData = sim$cohortData, # Has age info per pixel group
+                                     pixelGroupMap = sim$pixelGroupMap,
+                                     recoveryTime = P(sim)$recoveryTime)
       }
       # Make sure this is being created every year based on dist map (fire)
       sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
@@ -94,11 +126,12 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     },
     plot = {
 
-        sim$plotCaribou <- plotCaribou(startTime = P(sim)$.plotInitialTime,
+        sim$plotCaribou <- plotCaribou(startTime = start(sim),
                                        currentTime = time(sim),
                                        predictedCaribou = sim$predictedCaribou)
         
-        Plot(sim$plotCaribou, title = "Caribou population dynamics", new = TRUE)
+      plot(sim$plotCaribou, title = "Caribou population dynamics", new = TRUE, 
+           ylim = c(0, max(sim$plotCaribou$data$CaribouPopulationSize) + 10))
       
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotTimeInterval, "caribouPopGrowthModel", "plot")
@@ -111,7 +144,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
 }
 
 .inputObjects <- function(sim) {
-  
   params(sim)$.useDummyData <- FALSE
   
   cloudFolderID <- "https://drive.google.com/open?id=1PoEkOkg_ixnAdDqqTQcun77nUvkEHDc0"
@@ -146,11 +178,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                "\nGenerating DUMMY DATA to test the module (n = 200).")))
     sim$currentPop <- 6731 # most up to date estimate of caribou (NWT gov 2019, pers comm. with Jame Hodgson)
       
-  }
-  if (!suppliedElsewhere("DH_Tot", sim)){
-    message(crayon::red(paste0("Disturbance total information was not generated.", 
-                   "\nGenerating DUMMY DATA to test the module.")))
-    params(sim)$.useDummyData <- TRUE
   }
   if (!suppliedElsewhere("adultFemaleSurv", sim)){
     message(crayon::yellow(paste0("No LPU specific values for the female survival is available for NWT.", 
