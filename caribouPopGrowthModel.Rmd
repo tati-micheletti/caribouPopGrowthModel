@@ -30,10 +30,17 @@ caribous <- simInitAndSpades(times = times, params = parameters, modules = modul
                  objects = objects)
 
 ```
+# **POPULATION ANALYSES USING THE SPADES MODULE GROUP FOR NWT BOREAL WOODLAND CARIBOU (*Rangifer tarandus caribou*)**
+## NWT Framework for projecting Boreal Woodland caribou populations (study area scale)
+
+## *Tati Michelette, University of British Columbia*
+## *Frances E. C. Stewart, Canadian Forest Service, Natural Resouces Canada & School of Environmental Studies, University of Victoria*
+## *Eliot J.B. McIntire, Canadian Forest Service, Natural Resources Canada & Faculty fo Forestry, University of British Columbia*
+
 
 # Events
 
-Describe what happens for each event type.
+*Model objective:* plot and save both popultion growth rate and population size of woodland boreal caribou across the North West Territories. This module is based off of the reported recruitment relationship with total disturbance (Environment Canada 2012), which is used as the current boreal caribou recovery strategy guideline todate. Our module here
 
 ## Plotting
 
@@ -60,24 +67,27 @@ Describe any anticipated linkages to other modules.
 
 # Assumptions of this module - to be stated explicitly in written reports and publications
 
-**POPULATION MODELS - output N (population size)**
-1. For all population models (MODEL OPTION 1 THROUGH 5):
+**1. For all models (MODEL OPTION 1 THROUGH 6)**
 ASSUMPTION A: The statistical relationship between recruitment and the landscape described by ECCC 2012 is the correct relationship for NWT boreal caribou. (Model M3, recruitment ~ total disturbance; ECCC 2012 Table 56). This relationship was generated off of 24 data points of caribou study areas across Canada, and lacks information on study areas primarily driven by fire.
 
-ASSUMPTION B: Initial population of boreal caribou across the North West Territories Taiga Plains is 6731 individuals (James Hodgson pers. comm.; Gov NWT 2019)
+ASSUMPTION B: Adult female survival is constant. We used the ECCC 2012 recommended value of 0.85. We assume that this value applies to all local populations of boreal woodland caribou in the North West Territories.
+
+## POPULATION MODELS - output N (population size; MODEL OPTIONS 1 AND 2)
+ASSUMPTION C: Initial population of boreal caribou across the North West Territories Taiga Plains is 6731 individuals (James Hodgson pers. comm.; Gov NWT 2019)
 Government of the Northwest Territories. 2019. A Framework for Boreal Caribou Range Planning: Revised Draft - Appendices. Environment and Natural Resources, Government of the Northwest Territories, Yellowknife, NT. 38 + ii pp.
 
-2. For logarithmic population growth models (MODEL OPTION 4): - to do for future projects
-ASSUMPTION C: The carrying capacity of boreal caribou in the North West Territories Taiga Plains is 10,000 individuals 
+**2. For logarithmic population growth models (MODEL OPTION 2):**
+ASSUMPTION D: The carrying capacity of boreal caribou in the North West Territories Taiga Plains is 10,000 individuals 
 
-ASSUMPTION D: The intrinsic rate (r) of increase of boreal caribou in the North West Territories Taiga Plains is 10% (r = 0.10; Sutherland et al. in prep). Currently obtained from Sutherland et al. (in prep) demonstrating that recruitment needs to be > 0.1 for annual population growth
+ASSUMPTION E: The intrinsic rate (r) of increase of boreal caribou in the North West Territories Taiga Plains is 10% (r = 0.10; Sutherland et al. in prep). Currently obtained from Sutherland et al. (in prep) demonstrating that recruitment needs to be > 0.1 for annual population growth
 
-3. For stochastic population growth models (MODEL OPTION 5 & 6): - to do for future projects
+**3. For stochastic population growth models (MODEL OPTION 4 THROUGH 6): - to do for future projects**
 Still to be completed
 
 
-**POPULATION GROWTH MODELS - output lambda (population growth rate)**
-1. For population growth model (MODEL OPTION 3):
+## POPULATION GROWTH MODELS - output lambda (population growth rate)**
+**1. For population growth model (MODEL OPTION 3)**
+Calculation of lambda is based off of McLaughlin et al. (2003). This population growth model was also used in Sorrensen et al. (2006), and Hervieux et al. (2013).
 
 
 
