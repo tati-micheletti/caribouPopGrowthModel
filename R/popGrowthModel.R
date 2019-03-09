@@ -3,35 +3,44 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
                            currentPop = sim$currentPop,
                            currentTime = time(sim),
                            startTime = start(sim),
-                           adultFemaleSurv = sim$adultFemaleSurv){
+                           adultFemaleSurv = sim$adultFemaleSurv,
+                           popModel = P(sim)$popModel,
+                           listSACaribou = sim$listSACaribou){
   
   message("Growing some Caribous...")
-  cummDist <- data.frame(DH_Tot = DH_Tot[[paste0("Year", currentTime)]])
-  predParams <- lapply(X = names(caribouModels), FUN = function(model){
-    mod <- predict(caribouModels[[model]], newdata = cummDist, se = TRUE)
-    recr <- mod$fit/100 # average proportion across 4 herds from 2008 data.
-    SadF <- adultFemaleSurv # ECCC 2012 set this to 0.85, and we do not have any LPU specific values for the NWT. Therefore, I am making this same assumption
-
-    # Simple pop model
-    annualGrowth <- function(N, SadF, recr) {
-      newN <- N * SadF
-      newN <- newN + newN * (recr / 2) # only 1/2 the calves will be female
-      round(newN, 0)
-    }
-    
-# For each model, extract the current currentPop if class(currentPop) == "list"
- if (class(currentPop) == "list"){
-   currentPop <- currentPop[[model]]
- }
-    
-    newPop <- annualGrowth(N = currentPop,
-                           SadF = SadF, 
-                           recr = recr)
-    
-    return(list(Pred = mod, Rec = recr, adultFemaleSurv = SadF, currentPopUpdated = newPop))
+  
+  yearPrediction <- lapply(X = DH_Tot, FUN = function(yr){
+    shpPrediction <- lapply(X = yr, FUN = function(shp){
+      polyPrediction <- lapply(X = shp, FUN = function(polyg){
+        cummDist <- data.frame(DH_Tot = polyg)
+        predParams <- lapply(X = names(caribouModels), FUN = function(model){
+          mod <- predict(caribouModels[[model]], newdata = cummDist, se = TRUE)
+          recr <- mod$fit/100 # average proportion across 4 herds from 2008 data.
+          SadF <- adultFemaleSurv # ECCC 2012 set this to 0.85, and we do not have any LPU specific values for the NWT. Therefore, I am making this same assumption
+          
+          # For each model, extract the current currentPop if class(currentPop) == "list"
+          if (class(currentPop) == "list"){
+            currentPop <- currentPop[[model]]
+          }
+          param <- do.call(what = popModel, args = list(N = currentPop,
+                                                        SadF = SadF,recr = recr))
+          dt <- data.table::data.table(Rec = recr, 
+                                       adultFemaleSurv = SadF,
+                                       modelParam = param,
+                                       populationModel = popModel,
+                                       caribouModel = model)
+          return(list(Pred = mod, results = dt))
+        })
+        names(predParams) <- names(caribouModels)
+        return(predParams)
+      })
+      names(polyPrediction) <- names(shp)
+      return(polyPrediction)
+    })
+    names(shpPrediction) <- names(yr)
+    return(shpPrediction)
   })
-  names(predParams) <- names(caribouModels)
-  return(predParams)
+  return(yearPrediction[[paste0("Year", currentTime)]])
 }
 
 # ### Population growth event - Glenn's Model

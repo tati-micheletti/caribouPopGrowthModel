@@ -10,10 +10,10 @@ output: pdf_document
 ```{r module_usage}
 library(SpaDES)
 
-setPaths(modulePath = file.path("/home/tmichele/Documents/GitHub/NWT/modules"))
+setPaths(modulePath = file.path(dirname(getwd())))
 getPaths() # shows where the 4 relevant paths are
 
-times <- list(start = 0, end = 10)
+times <- list(start = 0, end = 4)
 
 parameters <- list(
   #.progress = list(type = "text", interval = 1), # for a progress bar
@@ -21,10 +21,14 @@ parameters <- list(
   #module1 = list(param1 = value1, param2 = value2),
   #module2 = list(param1 = value1, param2 = value2)
 )
+birdsFireCaribouV1 <- readRDS(file = file.path("/mnt/data/Micheletti/NWT", "outputs/birdsFireCaribouV1_05MAR19.rds"))
 modules <- list("caribouPopGrowthModel")
-objects <- list()
+objects <- list(cohortData = birdsFireCaribouV1$cohortData,
+                pixelGroupMap = birdsFireCaribouV1$pixelGroupMap)
 inputs <- list()
 outputs <- list()
+
+if (quickPlot::isRstudioServer()) options(httr_oob_default = TRUE)
 
 caribous <- simInitAndSpades(times = times, params = parameters, modules = modules,
                  objects = objects)

@@ -3,7 +3,8 @@ getDisturbance <- function(currentTime = time(sim),
                            pixelGroupMap = sim$pixelGroupMap, #Map of pixel groups
                            startTime = start(sim),
                            endTime = end(sim),
-                           recoveryTime = P(sim)$recoveryTime){
+                           recoveryTime = P(sim)$recoveryTime,
+                           listSACaribou = sim$listSACaribou){
 
   reproducible::Require("raster")
   reproducible::Require("magrittr")
@@ -14,16 +15,20 @@ getDisturbance <- function(currentTime = time(sim),
     currentTime <- originalTime - startTime
   }
   
-  valPixelGroup <- data.table(pixelGroup = raster::getValues(x = pixelGroupMap)) %>% 
+  valPixelGroup <- data.table(pixelGroup = raster::getValues(x = pixelGroupMap)) %>%
     plyr::join(cohortData[, max(age), by = "pixelGroup"])
   names(valPixelGroup)[2] <- "age"
   ageMap <- raster::setValues(x = pixelGroupMap, values = valPixelGroup$age)
-  totPixels <- length(ageMap[!is.na(ageMap)])
-  cummFire <- length(ageMap[!is.na(ageMap) & ageMap <= recoveryTime])
   
+  listDistForEachShpForEachPoly <- lapply(X = listSACaribou, FUN = function(caribouShapefile){
+    listPolyDist <- Cache(extractDisturbance, ageMap = ageMap, 
+                                       caribouShapefile = caribouShapefile, 
+                                       recoveryTime = recoveryTime)
+  })
+  names(listDistForEachShpForEachPoly) <- names(listSACaribou)
+  
+  DH_Tot <- list(listDistForEachShpForEachPoly)
   name <- paste0("Year", originalTime)
-  value <- 100*(cummFire/totPixels)
-  DH_Tot <- list(value)
   names(DH_Tot) <- name
   # Calc is done in percentage of the area
   return(DH_Tot)

@@ -21,15 +21,18 @@ defineModule(sim, list(
     defineParameter(".plotInitialTime", "numeric", start(sim) + 1, NA, NA, "inital plot time"),
     defineParameter(".plotTimeInterval", "numeric", 1, NA, NA, "Interval of plotting time"),
     defineParameter(".useDummyData", "logical", FALSE, NA, NA, "Should use dummy data? Automatically set"),
-    defineParameter("recoveryTime", "numeric", 40, NA, NA, "Time to recover the forest enough for caribou")
+    defineParameter("recoveryTime", "numeric", 40, NA, NA, "Time to recover the forest enough for caribou"),
+    defineParameter("popModel", "character", "annualLambda", NA, NA, paste0("Which population model to use? Options", 
+                                                                            "are in the file popModels.R in the R folder", 
+                                                                            " Default is the simplest lamdba model"))
   ),
   inputObjects = bind_rows(
-    # expectsInput(objectName = "studyArea", objectClass = "SpatialPolygonsDataFrame", 
-    #              desc = "Study area to predict caribou population to", 
-    #              sourceURL = "https://drive.google.com/open?id=1LUxoY2-pgkCmmNH5goagBp3IMpj6YrdU"),
-    # expectsInput(objectName = "caribouStudyArea", objectClass = "SpatialPolygonsDataFrame", 
-    #              desc = "Shapefile containing the spatial description of the caribout study areas", 
-    #              sourceURL = "https://drive.google.com/open?id=1ZaFsXPRsGOj69nyVv3SDNyT7qTHkX2kU"),
+    expectsInput(objectName = "caribouArea1", objectClass = "SpatialPolygonsDataFrame",
+                 desc = "Study area to predict caribou population to (NWT_Regions_2015_LCs_DC_SS)",
+                 sourceURL = "https://drive.google.com/open?id=1Qbt2pOvC8lGg25zhfMWcc3p6q3fZtBtO"),
+    expectsInput(objectName = "caribouArea2", objectClass = "SpatialPolygonsDataFrame",
+                 desc = "Study area to predict caribou population to (NT1_BOCA_spatial_units_for_landscape)",
+                 sourceURL = "https://drive.google.com/open?id=1Vqny_ZMoksAjji4upnr3OiJl2laGeBGV"),
     expectsInput(objectName = "caribouModels", objectClass = "list", 
                  desc = "List with model objects. Default is M3 (ECCC 2011, Table 56) downloaded if needed.", 
                  sourceURL = "https://drive.google.com/open?id=1jWOr5ZyVRobw8Wo_9z2UnbI48IufuyJc"),
@@ -52,9 +55,14 @@ defineModule(sim, list(
                   desc = "Caribou population size in the study area. Is updated every time step"),
     createsOutput(objectName = "plotCaribou", objectClass = "ggplot2", 
                   desc = "Caribou population size through time"),
-    createsOutput(objectName = "DH_Tot", objectClass = "numeric", 
-                  desc = paste0("DH_Tot is the total disturbance in the area in percentage.",
-                                " If not provided, it is created from sim$rstCurrentBurn coming from scfmSpread"))
+    createsOutput(objectName = "DH_Tot", objectClass = "list", 
+                  desc = paste0("DH_Tot is a list of shapefiles that have polygons with ", 
+                                "the total disturbance in the area in percentage.",
+                                " If not provided, it is created from sim$rstCurrentBurn", 
+                                " coming from scfmSpread")),
+    createsOutput(objectName = "listSACaribou", objectClass = "list", 
+                  desc = paste0("List of caribou areas to prodict for",
+                                " Currently only takes 2 shapefiles"))
   )
 ))
 
@@ -68,12 +76,13 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         message(crayon::red(paste0("Disturbance total information (pixelGroupMap & cohortData) was not found.", 
                                    "\nGenerating DUMMY DATA to test the module.")))
       }
-      
+      sim$listSACaribou = list(sim$caribouArea1, sim$caribouArea2)
+      names(sim$listSACaribou) <- c("caribouArea1", "caribouArea2")
       sim$predictedCaribou <- list()
 
       # schedule future event(s)
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribou")
-      sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
+      # sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
       sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot") 
     },
     growingCaribou = {
@@ -100,7 +109,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                      endTime = end(sim),
                                      cohortData = sim$cohortData, # Has age info per pixel group
                                      pixelGroupMap = sim$pixelGroupMap,
-                                     recoveryTime = P(sim)$recoveryTime)
+                                     recoveryTime = P(sim)$recoveryTime,
+                                     listSACaribou = sim$listSACaribou)
       }
       # Make sure this is being created every year based on dist map (fire)
       sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
@@ -108,7 +118,9 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                              currentPop = sim$currentPop,
                                              currentTime = time(sim),
                                              startTime = start(sim),
-                                             adultFemaleSurv = sim$adultFemaleSurv)
+                                             adultFemaleSurv = sim$adultFemaleSurv,
+                                             popModel = P(sim)$popModel,
+                                             listSACaribou = sim$listSACaribou)
       # schedule future event(s)
         sim <- scheduleEvent(sim, time(sim) + 1, "caribouPopGrowthModel", "growingCaribou")
       
@@ -125,16 +137,16 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       
     },
     plot = {
-
         sim$plotCaribou <- plotCaribou(startTime = start(sim),
                                        currentTime = time(sim),
+                                       endTime = end(sim),
                                        predictedCaribou = sim$predictedCaribou)
         
-      plot(sim$plotCaribou, title = "Caribou population dynamics", new = TRUE, 
-           ylim = c(0, max(sim$plotCaribou$data$CaribouPopulationSize) + 10))
+      # plot(sim$plotCaribou, title = "Caribou population dynamics", new = TRUE, 
+      #      ylim = c(0, max(sim$plotCaribou$data$CaribouPopulationSize) + 10))
       
       # schedule future event(s)
-      sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotTimeInterval, "caribouPopGrowthModel", "plot")
+      # sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotTimeInterval, "caribouPopGrowthModel", "plot")
       
     },
     warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],
@@ -149,23 +161,27 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   cloudFolderID <- "https://drive.google.com/open?id=1PoEkOkg_ixnAdDqqTQcun77nUvkEHDc0"
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
+  
   # if (!suppliedElsewhere(object = "studyArea", sim = sim)){
-  #   sim$studyArea <- cloudCache(prepInputs, 
-  #                               url = extractURL("studyArea"),
-  #                               destinationPath = dataPath(sim), 
-  #                               useCloud = TRUE, cloudFolderID = cloudFolderID)
+  #   sim$studyArea <- cloudCache(prepInputs,
+  #                               url = "https://drive.google.com/open?id=1LUxoY2-pgkCmmNH5goagBp3IMpj6YrdU",
+  #                               destinationPath = dataPath(sim),
+  #                               cloudFolderID = cloudFolderID,
+  #                               omitArgs = c("destinationPath", "cloudFolderID"))
   # }
-  # if (!suppliedElsewhere("caribouStudyArea", sim)){
-  #   sim$caribouStudyArea <- cloudCache(prepInputs,
-  #                                      url = extractURL("caribouStudyArea"),
-  #                                      destinationPath = dataPath(sim), 
-  #                                      useCloud = TRUE, cloudFolderID = cloudFolderID)
-  # }
-  # if (!suppliedElsewhere("caribouData", sim)){
-  #   sim$caribouData <- cloudCache(prepInputs, targetFile = "CaribouPopData_2008.csv",
-  #                                 url = extractURL("caribouData"),
-  #                                 destinationPath = dataPath(sim), fun = "data.table::fread",
-  #                                 useCloud = TRUE, cloudFolderID = cloudFolderID)
+  
+  if (!suppliedElsewhere(object = "caribouArea2", sim = sim)){
+    sim$caribouArea2 <- cloudCache(prepInputs,
+                                url = extractURL("caribouArea2"),
+                                destinationPath = dataPath(sim),
+                                useCloud = TRUE, cloudFolderID = cloudFolderID)
+  }
+  if (!suppliedElsewhere("caribouArea1", sim)){
+    sim$caribouArea1 <- cloudCache(prepInputs,
+                                       url = extractURL("caribouArea1"),
+                                       destinationPath = dataPath(sim),
+                                       useCloud = TRUE, cloudFolderID = cloudFolderID)
+  }
   if (!suppliedElsewhere("caribouModels", sim)){
     sim$caribouModels <- reproducible::prepInputs(url = extractURL("caribouModels"),
                                                   targetFile = "caribouModels.rds",
@@ -175,7 +191,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   }
   if (!suppliedElsewhere("currentPop", sim)){
     message(crayon::yellow(paste0("Initial population size not provided.", 
-                               "\nGenerating a mean population size for this study area (n = 353).")))
+                               "\nGenerating a mean population size for the studyArea of Edehzhie (n = 353).")))
     sim$currentPop <- 353
       
   }
