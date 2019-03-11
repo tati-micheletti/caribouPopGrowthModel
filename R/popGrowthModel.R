@@ -5,11 +5,9 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
                            startTime = start(sim),
                            adultFemaleSurv = sim$adultFemaleSurv){
   
-  message("Growing some Caribous...")
-  cummDist <- data.frame(DH_Tot = DH_Tot[[paste0("Year", currentTime)]])
   predParams <- lapply(X = names(caribouModels), FUN = function(model){
-    mod <- predict(caribouModels[[model]], newdata = cummDist, se = TRUE)
-    recr <- mod$fit/100 # average proportion across 4 herds from 2008 data.
+    mod <- predict(caribouModels[[model]], newdata = DH_Tot, se = TRUE)
+    recr <- mod$fit/100 # verage propostion across 4 herds from 2008 data.
     SadF <- adultFemaleSurv # ECCC 2012 set this to 0.85, and we do not have any LPU specific values for the NWT. Therefore, I am making this same assumption
 
 # MODEL OPTION 1
@@ -40,11 +38,12 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
 # MODEL OPTION 3 
 # Simple lambda model (i.e. realized population growth rate)
     annualLambda <- function(SadF, recr){
-      mortF <- (1-SadF)
-      mortR <- (1-recr)
-      newL <- (1-mortF)/(1-mortR) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006, and Hervieux et al. 2013
+      M <- (1-SadF)
+      R <- recr/2
+      newL <- (1-M)/(1-R) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006, and Hervieux et al. 2013
       round(newL, 2)
       return(newL)
+      plot(newL)
     }
     
 #######################################################################################################################

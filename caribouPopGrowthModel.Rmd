@@ -1,7 +1,7 @@
 ---
 title: "caribouPopGrowthModel"
-author: ""
-date: "15 February 2019"
+author: "Tati Micheletti", "Frances E.C. Stewart", "Eliot J.B. McIntire"
+date: "31 March 2019"
 output: pdf_document
 ---
 
@@ -33,22 +33,23 @@ caribous <- simInitAndSpades(times = times, params = parameters, modules = modul
 # **POPULATION ANALYSES USING THE SPADES MODULE GROUP FOR NWT BOREAL WOODLAND CARIBOU (*Rangifer tarandus caribou*)**
 ## NWT Framework for projecting Boreal Woodland caribou populations (study area scale)
 
-## *Tati Michelette, University of British Columbia*
+## *Tati Micheletti, University of British Columbia*
 ## *Frances E. C. Stewart, Canadian Forest Service, Natural Resouces Canada & School of Environmental Studies, University of Victoria*
 ## *Eliot J.B. McIntire, Canadian Forest Service, Natural Resources Canada & Faculty fo Forestry, University of British Columbia*
 
-
+# **GENERAL INFORMATION**
 # Events
 
-*Model objective:* plot and save both popultion growth rate and population size of woodland boreal caribou across the North West Territories. This module is based off of the reported recruitment relationship with total disturbance (Environment Canada 2012), which is used as the current boreal caribou recovery strategy guideline todate. Our module here
+*Moduleobjective:* plot and save both popultion growth rate and population size of woodland boreal caribou across the North West Territories. This module uses results from the *caribouRecDistRelationship* module to project caribou population growth rate (lambda) and population size (N) under changing landscape conditions outlined in other modules: anthropogenic features and fire. This is conducted on a yearly time step (i.e. upon each event) for 100 years.
+### note: module currenly does not link to anthropogenic feature change (as of 2019-03-05)
 
 ## Plotting
 
-Write what is plotted.
+This module plots changes in population growth (N) and changes in population growth rate (lambda) over the simulation period (100 years).
 
 ## Saving
 
-Write what is saved.
+NA
 
 # Data dependencies
 
@@ -57,13 +58,15 @@ Write what is saved.
 How to obtain input data, and a description of the data required by the module.
 If `sourceURL` is specified, `downloadData("caribouPopGrowthModel", "path/to/modules/dir")` may be sufficient.
 
+Data for woodland boreal caribou in the North West Territories Taiga plains has been compiled from Environment Canada 2011 Scientific Report, and is provided as an input to the *caribouRecDistRelationship* module. We use the reported recruitment values of four study areas reported (EC 2011); GSA north, GSA south, Dehcho North, and Dehcho South. We did not use available information on the Cameron Hills study area (EC 2008) as this population is regularly monitored by the Alberta government rather than NWT government (Gov NWT 2019).
+
 ## Output data
 
-Description of the module outputs.
+The output of this module is the population growth (N) and population growth rate (lambda) of woodland boreal caribou, within the Taiga plains NWT, over the simulation period (100 years).
 
 # Links to other modules
 
-Describe any anticipated linkages to other modules.
+The inputs of this module are linked to anthropogenic and fire modules. The outputs of this module are not linked to any other module.
 
 # Assumptions of this module - to be stated explicitly in written reports and publications
 
@@ -89,6 +92,27 @@ Still to be completed
 **1. For population growth model (MODEL OPTION 3)**
 Calculation of lambda is based off of McLaughlin et al. (2003). This population growth model was also used in Sorrensen et al. (2006), and Hervieux et al. (2013).
 
+
+# *REPORT*
+
+
+# Literature Cited
+
+EC 2008
+
+EC 2011
+
+EC 2012
+
+Sutherland et al. in prep
+
+McLaughlin et al. 2003
+
+Sorrensen et al. 2006
+
+Hervieux et al. 2013
+
+Gov NWT 2019
 
 
 
