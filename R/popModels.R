@@ -19,11 +19,10 @@ annualGrowthLogistic <- function(N, SadF, recr){
   plot(newN)
 }
 
-# Simple lambda model (i.e. realized population growth rate)
+# Simple lambda model (i.e. realized population growth rate)  # ==========> Fix the model, and check unit
 annualLambda <- function(SadF, recr, ...){
 mortF <- (1-SadF)
-mortR <- (1-recr)
-newL <- round((1-mortF)/(1-mortR), 2) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006
+newL <- round((1-mortF)/(1-(recr/2)), 2) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006
 return(newL)
 }
 

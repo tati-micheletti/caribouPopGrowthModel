@@ -189,7 +189,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                                   fun = "base::readRDS", 
                                                   omitArgs = c("destinationPath"))
   }
-  if (!suppliedElsewhere("currentPop", sim)){
+  if (!suppliedElsewhere("currentPop", sim) &
+      P(sim)$popModel != "annualLambda"){
     message(crayon::yellow(paste0("Initial population size not provided.", 
                                "\nGenerating a mean population size for the studyArea of Edehzhie (n = 353).")))
     sim$currentPop <- 353
