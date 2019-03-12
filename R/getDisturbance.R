@@ -4,7 +4,8 @@ getDisturbance <- function(currentTime = time(sim),
                            startTime = start(sim),
                            endTime = end(sim),
                            recoveryTime = P(sim)$recoveryTime,
-                           listSACaribou = sim$listSACaribou){
+                           listSACaribou = sim$listSACaribou,
+                           anthropogenicLayer = sim$anthropogenicLayer){
 
   reproducible::Require("raster")
   reproducible::Require("magrittr")
@@ -21,9 +22,10 @@ getDisturbance <- function(currentTime = time(sim),
   ageMap <- raster::setValues(x = pixelGroupMap, values = valPixelGroup$age)
   
   listDistForEachShpForEachPoly <- lapply(X = listSACaribou, FUN = function(caribouShapefile){
-    listPolyDist <- Cache(extractDisturbance, ageMap = ageMap, 
-                                       caribouShapefile = caribouShapefile, 
-                                       recoveryTime = recoveryTime)
+    listPolyDist <- Cache(extractDisturbance, ageMap = ageMap,
+                          caribouShapefile = caribouShapefile,
+                          recoveryTime = recoveryTime,
+                          anthropogenicLayer = anthropogenicLayer)
   })
   names(listDistForEachShpForEachPoly) <- names(listSACaribou)
   
