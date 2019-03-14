@@ -5,7 +5,8 @@ getDisturbance <- function(currentTime = time(sim),
                            endTime = end(sim),
                            recoveryTime = P(sim)$recoveryTime,
                            listSACaribou = sim$listSACaribou,
-                           anthropogenicLayer = sim$anthropogenicLayer){
+                           anthropogenicLayer = sim$anthropogenicLayer,
+                           waterRaster = sim$waterRaster){
 
   reproducible::Require("raster")
   reproducible::Require("magrittr")
@@ -30,13 +31,11 @@ getDisturbance <- function(currentTime = time(sim),
     listPolyDist <- Cache(extractDisturbance, ageMap = ageMap,
                           caribouShapefile = caribouShapefile,
                           recoveryTime = recoveryTime,
-                          anthropogenicLayer = anthropogenicLayer)
+                          anthropogenicLayer = anthropogenicLayer,
+                          waterRaster = waterRaster)
   })
-  browser()
-  names(listDistForEachShpForEachPoly) <- names(listSACaribou)
-  DH_Tot <- listDistForEachShpForEachPoly
+  DH_Tot <- list(listDistForEachShpForEachPoly) # List of the year
   name <- paste0("Year", originalTime)
   names(DH_Tot) <- name
-  # Calc is done in percentage of the area
   return(DH_Tot)
 }

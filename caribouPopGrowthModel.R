@@ -24,9 +24,14 @@ defineModule(sim, list(
     defineParameter("recoveryTime", "numeric", 40, NA, NA, "Time to recover the forest enough for caribou"),
     defineParameter("popModel", "character", "annualLambda", NA, NA, paste0("Which population model to use? Options", 
                                                                             "are in the file popModels.R in the R folder", 
-                                                                            " Default is the simplest lamdba model"))
+                                                                            " Default is the simplest lamdba model")),
+    defineParameter(name = "baseLayer", class = "character", default = 2005, min = NA, max = NA, 
+                    desc = "Which layer should be used? LCC05 or LCC10?")
   ),
   inputObjects = bind_rows(
+    expectsInput(objectName = "waterRaster", objectClass = "RasterLayer",
+                 desc = "Wetland raster for excluding water from anthropogenic layer",
+                 sourceURL = NA),
     expectsInput(objectName = "caribouArea1", objectClass = "SpatialPolygonsDataFrame",
                  desc = "Study area to predict caribou population to (NWT_Regions_2015_LCs_DC_SS)",
                  sourceURL = "https://drive.google.com/open?id=1Qbt2pOvC8lGg25zhfMWcc3p6q3fZtBtO"),
@@ -115,7 +120,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                      pixelGroupMap = sim$pixelGroupMap,
                                      recoveryTime = P(sim)$recoveryTime,
                                      listSACaribou = sim$listSACaribou,
-                                     anthropogenicLayer = sim$anthropogenicLayer)
+                                     anthropogenicLayer = sim$anthropogenicLayer,
+                                     waterRaster = sim$waterRaster)
       }
 
       sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
@@ -211,6 +217,20 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     sim$adultFemaleSurv <- 0.85
   }
   
+  if (!suppliedElsewhere("waterRaster", sim)){
+  wetlandRaster <- Cache(prepInputsLayers_DUCKS, destinationPath = dataPath(sim), 
+                               studyArea = sim$studyArea, 
+                               userTags = "objectName:wetlandRaster")
+  sim$waterRaster <- Cache(classifyWetlands, LCC = P(sim)$baseLayer,
+                             wetLayerInput = wetlandRaster,
+                             pathData = dataPath(sim),
+                             studyArea = sim$studyArea,
+                             userTags = c("objectName:wetLCC"))
+  waterVals <- raster::getValues(sim$waterRaster) # Uplands = 3, Water = 1, Wetlands = 2, so 2 and 3 to NA
+  waterVals[waterVals == 1] <- NA
+  waterVals[waterVals > 1] <- 1
+  sim$waterRaster <- raster::setValues(sim$waterRaster, waterVals)
+  }
   # This specific one is for RSF, not growth model if just being used here as a test for when the right one is done. When the 500m is done, just substitute
   # the url and the name!
   if (!suppliedElsewhere("anthropogenicLayer", sim)){
