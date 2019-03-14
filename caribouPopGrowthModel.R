@@ -217,6 +217,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   sim$anthropogenicLayer <- prepInputs(targetFile = "lineDensityMap_BCR6_NWT_Roads_v0.2.3_FFT_radius10000_t0.tif",
                                        url = "https://drive.google.com/open?id=11Fr-Mq3rPHppjRqJ868aBDEBCHT7aqXb",
                                        destinationPath = dataPath(sim), studyArea = sim$studyArea,
+                                       overwrite = TRUE, 
                                        rasterToMatch = sim$rasterToMatch)
   }
 

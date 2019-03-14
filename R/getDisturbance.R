@@ -15,9 +15,14 @@ getDisturbance <- function(currentTime = time(sim),
     relEndTime <- endTime - startTime
     currentTime <- originalTime - startTime
   }
+
+  threadsDT <- getDTthreads()
+  setDTthreads(1)
+  on.exit({setDTthreads(threadsDT)}, add = TRUE)
   
   valPixelGroup <- data.table(pixelGroup = raster::getValues(x = pixelGroupMap)) %>%
     plyr::join(cohortData[, max(age), by = "pixelGroup"])
+  
   names(valPixelGroup)[2] <- "age"
   ageMap <- raster::setValues(x = pixelGroupMap, values = valPixelGroup$age)
   
@@ -27,9 +32,9 @@ getDisturbance <- function(currentTime = time(sim),
                           recoveryTime = recoveryTime,
                           anthropogenicLayer = anthropogenicLayer)
   })
+  browser()
   names(listDistForEachShpForEachPoly) <- names(listSACaribou)
-  
-  DH_Tot <- list(listDistForEachShpForEachPoly)
+  DH_Tot <- listDistForEachShpForEachPoly
   name <- paste0("Year", originalTime)
   names(DH_Tot) <- name
   # Calc is done in percentage of the area

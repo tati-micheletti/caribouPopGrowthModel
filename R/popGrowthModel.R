@@ -6,11 +6,11 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
                            adultFemaleSurv = sim$adultFemaleSurv,
                            popModel = P(sim)$popModel,
                            listSACaribou = sim$listSACaribou){
-  
-  # THIS MODULE NEEDS TO DEAL WITH BOTH ANTHROPOGENIC AND FIRE. TYHE DISTURBANCES SHOULD COME HERE AS DT, AND DEALT WITH 
-  
+
   message("Growing some Caribous...")
   
+  # THIS MODULE NEEDS TO DEAL WITH BOTH ANTHROPOGENIC AND FIRE. TYHE DISTURBANCES SHOULD COME HERE AS DT, AND DEALT WITH 
+  browser()
   yearPrediction <- lapply(X = DH_Tot, FUN = function(yr){
     shpPrediction <- lapply(X = yr, FUN = function(shp){
       polyPrediction <- lapply(X = shp, FUN = function(polyg){

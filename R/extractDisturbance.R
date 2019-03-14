@@ -32,15 +32,39 @@ extractDisturbance <- function(ageMap = ageMap,
   
   #Naming both fire and anthro disturbances
   nm <- if (!is.null(caribouShapefile$NAME)) "NAME" else "Name"
-  names(extrFire) <- caribouShapefile[[nm]]
+  names(extrFire) <- names(extrAnthro) <- caribouShapefile[[nm]]
   
-  browser() # HOW SHOULD I EXTRACT BOTH INFORMATION (ANTHROPO + FIRE?)
-  listExtr <- lapply(X = extrFire, FUN = function(eachPoly){
-    totPixels <- length(eachPoly)
-    totPixelsNotNA <- sum(!is.na(eachPoly))
-    cummFire <- sum(!is.na(eachPoly) & eachPoly <= recoveryTime, na.rm = TRUE)
-    value <- 100*(cummFire/totPixelsNotNA) # We are calculating percent disturbance ONLY for those pixels that are forest/within BCR 6 NWT
+  listExtr <- lapply(X = caribouShapefile[[nm]], FUN = function(eachPoly){
+    if (!is.null(extrAnthro) & (length(extrAnthro[[eachPoly]]) != length(extrFire[[eachPoly]])))
+      stop("Something went wrong with the fire and anthropogenic polygons. Please debug")
+    totPixels <- length(extrAnthro[[eachPoly]])
+    
+    # Fire
+    totPixelsNotNAFire <- sum(!is.na(extrFire[[eachPoly]]))
+    cummFire <- sum(!is.na(extrFire[[eachPoly]]) & 
+                      extrFire[[eachPoly]] <= recoveryTime, na.rm = TRUE)
+    percentFire <- 100*(cummFire/totPixelsNotNAFire) # We are calculating percent disturbance ONLY for those pixels that are forest/within BCR 6 NWT
+    
+    # ============ WHEN ATHROPO LAYER IS READY, DELETE BERLOW LINES  ============================== 
+    if (!is.null(extrAnthro)){
+      areaName <- if (!is.null(caribouShapefile$Area_ha)) "Area_ha" else "Area_km2"
+      areaSize <- caribouShapefile[caribouShapefile[[nm]] == eachPoly,][[areaName]]
+      multi <- if (areaName == "Area_km2") 1 else 0.01 # Multiplication factor to correct from ha to km2
+      percentAnthopo <- 100*sum(extrAnthro[[eachPoly]], na.rm = TRUE)/(multi*areaSize) # Converting area from ha to km2 and making the % by multiplying by 100
+      
+      # ============ WHEN ATHROPO LAYER IS READY, DELETE ABOVE LINES AND USE THESE INSTEAD ======== 
+      
+      # percentAnthopo <- sum(extrAnthro[[eachPoly]], na.rm = TRUE)/totPixels
+      # We are calculating percent disturbance of anthropogenic features for ALL pixels in each poly of BCR 6 NWT
+      
+      # ===========================================================================================
+    } else {
+      percentAnthopo <- 0
+    }
+    # Data.frame of the disturbances:
+    df <- data.frame(fire = percentFire, anthropo = percentAnthopo)
   })
+  names(listExtr) <- caribouShapefile[[nm]]
   
   return(listExtr)
 }

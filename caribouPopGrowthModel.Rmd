@@ -21,17 +21,17 @@ parameters <- list(
   #module1 = list(param1 = value1, param2 = value2),
   #module2 = list(param1 = value1, param2 = value2)
 )
-birdsFireCaribouV2 <- readRDS(file = file.path("/mnt/data/Micheletti/NWT", "outputs/birdsFireCaribouV2_11MAR19.rds"))
+birdsFireCaribouV1 <- readRDS(file = file.path("/home/tmichele/Documents/GitHub/NWT", "outputs/birdsFireCaribouV1_05MAR19.rds"))
 modules <- list("caribouPopGrowthModel")
-objects <- list(cohortData = birdsFireCaribouV2$cohortData,
-                pixelGroupMap = birdsFireCaribouV2$pixelGroupMap)
+.objects <- list(cohortData = birdsFireCaribouV1$cohortData,
+                pixelGroupMap = birdsFireCaribouV1$pixelGroupMap)
 inputs <- list()
 outputs <- list()
 
 if (quickPlot::isRstudioServer()) options(httr_oob_default = TRUE)
 
 caribous <- simInitAndSpades(times = times, params = parameters, modules = modules,
-                 objects = objects)
+                 objects = .objects)
 
 ```
 
