@@ -10,7 +10,8 @@ output: pdf_document
 ```{r module_usage}
 library(SpaDES)
 
-setPaths(modulePath = file.path(dirname(getwd())))
+setPaths(modulePath = file.path(dirname(getwd())), 
+         inputPath = file.path(dirname(dirname(getwd())), "outputs", toupper(format(Sys.time(), "%d%b%y"))))
 getPaths() # shows where the 4 relevant paths are
 
 times <- list(start = 0, end = 4)
@@ -21,10 +22,8 @@ parameters <- list(
   #module1 = list(param1 = value1, param2 = value2),
   #module2 = list(param1 = value1, param2 = value2)
 )
-birdsFireCaribouV1 <- readRDS(file = file.path("/home/tmichele/Documents/GitHub/NWT", "outputs/birdsFireCaribouV1_05MAR19.rds"))
 modules <- list("caribouPopGrowthModel")
-.objects <- list(cohortData = birdsFireCaribouV1$cohortData,
-                pixelGroupMap = birdsFireCaribouV1$pixelGroupMap)
+.objects <- list("modelsToUse" = "M3")
 inputs <- list()
 outputs <- list()
 

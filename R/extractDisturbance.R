@@ -84,7 +84,8 @@ extractDisturbance <- function(ageMap = ageMap,
       percentAnthopo <- 0
     }
     # Data.frame of the disturbances:
-    df <- data.frame(fire = percentFire, anthropo = percentAnthopo, totalDist = totalDisturbance)
+    df <- data.frame(DH_Fire = percentFire, DH_Anthro = percentAnthopo, DH_Total = totalDisturbance)
+    
   })
   names(listExtr) <- caribouShapefile[[nm]]
   

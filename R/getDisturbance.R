@@ -34,8 +34,8 @@ getDisturbance <- function(currentTime = time(sim),
                           anthropogenicLayer = anthropogenicLayer,
                           waterRaster = waterRaster)
   })
-  DH_Tot <- list(listDistForEachShpForEachPoly) # List of the year
+  disturbances <- list(listDistForEachShpForEachPoly) # List of the year
   name <- paste0("Year", originalTime)
-  names(DH_Tot) <- name
-  return(DH_Tot)
+  names(disturbances) <- name
+  return(disturbances)
 }

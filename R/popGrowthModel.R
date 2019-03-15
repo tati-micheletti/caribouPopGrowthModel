@@ -1,5 +1,5 @@
-popGrowthModel <- function(caribouModels = sim$caribouModels,
-                           DH_Tot = sim$DH_Tot,
+popGrowthModel <- function(caribouModels = sim$caribouModels, # <==== Caribou models should be just the simple model
+                           disturbances = sim$disturbances,
                            currentPop = sim$currentPop,
                            currentTime = time(sim),
                            startTime = start(sim),
@@ -9,17 +9,14 @@ popGrowthModel <- function(caribouModels = sim$caribouModels,
 
   message("Growing some Caribous...")
   
-  # THIS MODULE NEEDS TO DEAL WITH BOTH ANTHROPOGENIC AND FIRE. TYHE DISTURBANCES SHOULD COME HERE AS DT, AND DEALT WITH 
-  browser()
-  yearPrediction <- lapply(X = DH_Tot, FUN = function(yr){
+  yearPrediction <- lapply(X = disturbances, FUN = function(yr){
     shpPrediction <- lapply(X = yr, FUN = function(shp){
       polyPrediction <- lapply(X = shp, FUN = function(polyg){
-        cummDist <- data.frame(DH_Tot = polyg)
-        predParams <- lapply(X = names(caribouModels), FUN = function(model){
-          mod <- predict(caribouModels[[model]], newdata = cummDist, se = TRUE)
-          recr <- mod$fit/100 # average proportion across 4 herds from 2008 data.
+        predParams <- lapply(X = caribouModels, FUN = function(model){
+          attach(polyg)
+          recr <- eval(parse(text = model))
+          detach(polyg)
           SadF <- adultFemaleSurv # ECCC 2012 set this to 0.85, and we do not have any LPU specific values for the NWT. Therefore, I am making this same assumption
-          
           # For each model, extract the current currentPop if class(currentPop) == "list"
           if (class(currentPop) == "list"){
             currentPop <- currentPop[[model]]

@@ -4,7 +4,7 @@ plotCaribou <- function(startTime = start(sim),
                         predictedCaribou = sim$predictedCaribou){
   
   reproducible::Require(ggplot2)
-
+  
   # Year -> Shapefile -> Polygon -> Model -> results
   tableAll <- rbindlist(lapply(X = 1:length(predictedCaribou), FUN = function(yr){ # here I extract the info for all locations and models, make a big table
     yrReady <- rbindlist(lapply(X = 1:length(predictedCaribou[[yr]]), FUN = function(shp){
@@ -32,7 +32,7 @@ plotCaribou <- function(startTime = start(sim),
                                      Time = time)
   tableAll <- merge(tableAll, yearTime)
 
-  quickPlot::clearPlot()
+  tryCatch(quickPlot::clearPlot(), error = function(e){message(crayon::red("quickPlot::clearPlot() failed"))})
   
   plts <- lapply(X = unique(tableAll$CaribouArea), function(shp){
     yaxis <- if (unique(tableAll[["populationModel"]]) == "annualLambda") "lambda" else tableAll[["populationModel"]]
@@ -46,8 +46,9 @@ plotCaribou <- function(startTime = start(sim),
     
     if(currentTime == endTime){
       
-      clearPlot()
-      png(file.path(getwd(), "outputs", 
+      tryCatch(quickPlot::clearPlot(), error = function(e){message(crayon::red("quickPlot::clearPlot() failed"))})
+      pngPath <- checkPath(file.path(getwd(), "outputs"), create = TRUE)
+      png(file.path(pngPath, 
                     paste0("caribou", shp, "_", 
                            toupper(format(Sys.time(), "%d%b%y")),".png")), 
           width = 700, height = 480)
