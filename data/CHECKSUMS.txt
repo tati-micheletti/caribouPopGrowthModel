@@ -44,3 +44,5 @@
 "HWL_BCR6.tif.ovr" "689cb7cfaf60d716" "157850864" "xxhash64"
 "LandCoverOfCanada2005_V1_4.zip" "e100c037a257e377" "47185238" "xxhash64"
 "LCC2005_V1_4a.tif" "b50567fc83bcc5de" "437916202" "xxhash64"
+"caribouCoefTable.csv" "6277edfe0e3e82c2" "601" "xxhash64"
+"500mBufferedRoads_250m.tif" "f8ca857657a1fa89" "1990788" "xxhash64"
