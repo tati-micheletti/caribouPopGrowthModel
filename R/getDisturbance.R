@@ -6,7 +6,8 @@ getDisturbance <- function(currentTime = time(sim),
                            recoveryTime = P(sim)$recoveryTime,
                            listSACaribou = sim$listSACaribou,
                            anthropogenicLayer = sim$anthropogenicLayer,
-                           waterRaster = sim$waterRaster){
+                           waterRaster = sim$waterRaster,
+                           isRSF = FALSE){
 
   reproducible::Require("raster")
   reproducible::Require("magrittr")
@@ -27,15 +28,28 @@ getDisturbance <- function(currentTime = time(sim),
   names(valPixelGroup)[2] <- "age"
   ageMap <- raster::setValues(x = pixelGroupMap, values = valPixelGroup$age)
   
-  listDistForEachShpForEachPoly <- lapply(X = listSACaribou, FUN = function(caribouShapefile){
-    listPolyDist <- Cache(extractDisturbance, ageMap = ageMap,
-                          caribouShapefile = caribouShapefile,
+  if (!isRSF){
+    listDistForEachShpForEachPoly <- lapply(X = listSACaribou, FUN = function(caribouShapefile){
+      listPolyDist <- Cache(extractDisturbance, ageMap = ageMap,
+                            caribouShapefile = caribouShapefile,
+                            recoveryTime = recoveryTime,
+                            anthropogenicLayer = anthropogenicLayer,
+                            waterRaster = waterRaster)
+    })
+    disturbances <- list(listDistForEachShpForEachPoly) # List of the year
+    name <- paste0("Year", originalTime)
+    names(disturbances) <- name
+  } else {
+    # STOPPED HERE! Still need to adapt thhis function...
+    partialLayers <- Cache(extractDisturbanceRSF, ageMap = ageMap,
                           recoveryTime = recoveryTime,
                           anthropogenicLayer = anthropogenicLayer,
-                          waterRaster = waterRaster)
-  })
-  disturbances <- list(listDistForEachShpForEachPoly) # List of the year
-  name <- paste0("Year", originalTime)
-  names(disturbances) <- name
+                          waterRaster = waterRaster) # Here i can extract water Layer, roadDensity, oldBurn, newBurn, deciduos
+    # Still missing elevation, vrug, shrub, herb and elevation^2, vrug^2 
+    disturbances <- list(partialLayers) # List of the year
+    name <- paste0("Year", originalTime)
+    names(disturbances) <- name
+  }
+  
   return(disturbances)
 }
