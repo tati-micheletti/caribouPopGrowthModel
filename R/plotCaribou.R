@@ -1,7 +1,8 @@
 plotCaribou <- function(startTime = start(sim),
                         currentTime = time(sim),
                         endTime = end(sim),
-                        predictedCaribou = sim$predictedCaribou){
+                        predictedCaribou = sim$predictedCaribou,
+                        yearSimulationStarts = P(sim)$yearSimulationStarts){
   
   reproducible::Require(ggplot2)
   
@@ -29,7 +30,7 @@ plotCaribou <- function(startTime = start(sim),
     }
   
   yearTime <- data.table::data.table(Year = unique(tableAll$Year), 
-                                     Time = time)
+                                     Time = time + yearSimulationStarts)
   tableAll <- merge(tableAll, yearTime)
 
   tryCatch(quickPlot::clearPlot(), error = function(e){message(crayon::red("quickPlot::clearPlot() failed"))})
@@ -39,9 +40,13 @@ plotCaribou <- function(startTime = start(sim),
     popModelPlot <- ggplot2::ggplot(data = tableAll[CaribouArea == shp], aes(x = Time,
                                                          y = modelParam, 
                                                          colour = Polygon)) +
+      facet_grid(rows = vars(Polygon)) +
+      geom_hline(yintercept = 1, linetype = "dotted", color = "grey73", size = 1) +
       geom_line(size = 1.2) +
+      geom_ribbon(aes(ymin = minModelParam, ymax = maxModelParam, fill = Polygon), alpha = 0.3, colour = NA) +
       ggtitle(paste0("Caribou population dynamics")) +
-      theme(legend.position = "bottom") +
+      theme(legend.position = "bottom",
+            strip.text.y = element_blank()) +
       ylab(yaxis)
     
     if(currentTime == endTime){
