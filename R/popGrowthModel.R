@@ -28,7 +28,10 @@ popGrowthModel <- function(caribouModels = sim$caribouModels, # <==== Caribou mo
                                        maxRec = max(recr),
                                        sdRec = sd(recr),
                                        adultFemaleSurv = SadF,
-                                       modelParam = param,
+                                       minModelParam = min(param),
+                                       maxModelParam = max(param),
+                                       sdModelParam = sd(param),
+                                       modelParam = mean(param),
                                        populationModel = popModel,
                                        caribouModel = model)
           return(list(Pred = caribouModels, results = dt))
