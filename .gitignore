@@ -37,3 +37,6 @@ rsconnect/
 .Rproj.user
 
 data/*.*
+outputs/
+./outputs/
+outputs/*.*
