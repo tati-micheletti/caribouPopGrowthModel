@@ -26,7 +26,9 @@ defineModule(sim, list(
                                                                             "are in the file popModels.R in the R folder", 
                                                                             " Default is the simplest lamdba model")),
     defineParameter(name = "baseLayer", class = "character", default = 2005, min = NA, max = NA, 
-                    desc = "Which layer should be used? LCC05 or LCC10?")
+                    desc = "Which layer should be used? LCC05 or LCC10?"),
+    defineParameter(name = "yearSimulationStarts", class = "numeric", default = 2010, min = NA, max = NA, 
+                    desc = "Which year does the simulation starts?")
   ),
   inputObjects = bind_rows(
     expectsInput(objectName = "waterRaster", objectClass = "RasterLayer",
@@ -204,7 +206,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         sim$plotCaribou <- plotCaribou(startTime = start(sim),
                                        currentTime = time(sim),
                                        endTime = end(sim),
-                                       predictedCaribou = sim$predictedCaribou)
+                                       predictedCaribou = sim$predictedCaribou,
+                                       yearSimulationStarts = P(sim)$yearSimulationStarts)
     },
     warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],
                   "' in module '", current(sim)[1, "moduleName", with = FALSE], "'", sep = ""))
