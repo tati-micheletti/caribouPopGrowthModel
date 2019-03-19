@@ -234,7 +234,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   if (!suppliedElsewhere("caribouCoefTable", sim)){
     sim$caribouCoefTable <- prepInputs(targetFile = "caribouCoefTable.csv", url = extractURL("caribouCoefTable"),
                                        destinationPath = dataPath(sim), fun = "data.table::fread", 
-                                       omitArgs = "destinationPath")
+                                       omitArgs = "destinationPath", overwrite = TRUE)
   }
   if (!suppliedElsewhere("modelsToUse", sim)){
     sim$modelsToUse <- "M3"
@@ -300,11 +300,10 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   waterVals[waterVals > 1] <- 1
   sim$waterRaster <- raster::setValues(sim$waterRaster, waterVals)
   }
-  # This specific one is for RSF, not growth model if just being used here as a test for when the right one is done. When the 500m is done, just substitute
-  # the url and the name!
+
   if (!suppliedElsewhere("anthropogenicLayer", sim)){
-  sim$anthropogenicLayer <- prepInputs(targetFile = "lineDensityMap_BCR6_NWT_Roads_v0.2.3_FFT_radius10000_t0.tif",
-                                       url = "https://drive.google.com/open?id=11Fr-Mq3rPHppjRqJ868aBDEBCHT7aqXb",
+  sim$anthropogenicLayer <- prepInputs(targetFile = "500mBufferedRoads_250m.tif",
+                                       url = "https://drive.google.com/open?id=1zj7zo8NBNhxxHMUL4ZnKTaP3niuQEI1m",
                                        destinationPath = dataPath(sim), studyArea = sim$studyArea,
                                        overwrite = TRUE, 
                                        rasterToMatch = sim$rasterToMatch)
