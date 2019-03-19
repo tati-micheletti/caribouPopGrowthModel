@@ -5,7 +5,7 @@ createEquation <- function(model = modelCoeff){
   coeffs <- model[Coefficient != "Intercept", Coefficient]
   eq <- model[Coefficient == "Intercept", Value]
   for (coef in coeffs){
-    eq <- paste0(eq, paste0( " + ", coef, " * ", model[Coefficient == coef, Value]))
+    eq <- paste0(eq, " + ", coef, " * ", "rnorm(n = 100, mean = ", model[Coefficient == coef, Value], ", sd = ", model[Coefficient == coef, StdErr], ")")
   }
   return(eq)
 }

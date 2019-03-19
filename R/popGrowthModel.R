@@ -23,12 +23,15 @@ popGrowthModel <- function(caribouModels = sim$caribouModels, # <==== Caribou mo
           }
           param <- do.call(what = popModel, args = list(N = currentPop,
                                                         SadF = SadF,recr = recr))
-          dt <- data.table::data.table(Rec = recr, 
+          dt <- data.table::data.table(Rec = mean(recr),
+                                       minRec = min(recr),
+                                       maxRec = max(recr),
+                                       sdRec = sd(recr),
                                        adultFemaleSurv = SadF,
                                        modelParam = param,
                                        populationModel = popModel,
                                        caribouModel = model)
-          return(list(Pred = mod, results = dt))
+          return(list(Pred = caribouModels, results = dt))
         })
         names(predParams) <- names(caribouModels)
         return(predParams)
