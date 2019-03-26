@@ -60,8 +60,6 @@ extractDisturbance <- function(ageMap = ageMap,
     
     if (!is.null(extrAnthro)){
 
-      extrAnthro[[eachPoly]][extrAnthro[[eachPoly]] > 0] <- 1     # ============ WHEN ATHROPO LAYER IS READY, DELETE THIS LINE!!
-
       # Fore anthropogenic:
       # From the anthropo layer we calculate for each polygon the total amount of pixels that had disturbances
       # over the total number of pixels "available" to have it (non-NA when na is JUST WATER).

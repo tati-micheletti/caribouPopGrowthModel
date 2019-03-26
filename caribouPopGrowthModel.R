@@ -168,7 +168,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         cohortData <- if (!is.null(sim$cohortData)) sim$cohortData else mod$cohortData
         pixelGroupMap <- if (!is.null(sim$pixelGroupMap)) sim$pixelGroupMap else mod$pixelGroupMap
 
-        sim$disturbances <- getDisturbance(currentTime = time(sim),
+        sim$disturbances <- getLayers(currentTime = time(sim),
                                      startTime = start(sim),
                                      endTime = end(sim),
                                      cohortData = cohortData, # Has age info per pixel group
@@ -176,7 +176,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                      recoveryTime = P(sim)$recoveryTime,
                                      listSACaribou = sim$listSACaribou,
                                      anthropogenicLayer = sim$anthropogenicLayer,
-                                     waterRaster = sim$waterRaster)
+                                     waterRaster = sim$waterRaster,
+                                     isRSF = FALSE)
       }
 
       sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
