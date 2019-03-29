@@ -8,7 +8,6 @@ createModels <- function(caribouCoefTable = sim$caribouCoefTable,
     stop("Only models M3 and M7 (for population growth) and TaigaPlains (for RSF) have been implemented so far")
   
   modelCoeff <- caribouCoefTable[ModelNum == modelsToUse]
-  
   equation <- createEquation(model = modelCoeff)
   modList <- list(equation)
   names(modList) <- modelsToUse

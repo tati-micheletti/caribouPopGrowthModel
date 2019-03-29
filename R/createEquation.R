@@ -1,7 +1,10 @@
 createEquation <- function(model = modelCoeff){
   howManyCovars <- length(model$Coefficient) - 1
-  if (!"Intercept" %in% model$Coefficient[1])
-    stop("The model intercept ('Intercept') couldn't be found in the table. Review your data.")
+  if (!"Intercept" %in% model$Coefficient){
+    message("The model intercept ('Intercept') couldn't be found in the table. Review your data.")
+    browser()
+  }
+
   coeffs <- model[Coefficient != "Intercept", Coefficient]
   eq <- model[Coefficient == "Intercept", Value]
   for (coef in coeffs){

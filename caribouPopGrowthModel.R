@@ -28,6 +28,8 @@ defineModule(sim, list(
     defineParameter(name = "baseLayer", class = "character", default = 2005, min = NA, max = NA, 
                     desc = "Which layer should be used? LCC05 or LCC10?"),
     defineParameter(name = "yearSimulationStarts", class = "numeric", default = 2010, min = NA, max = NA, 
+                    desc = "Which year does the simulation starts?"),
+    defineParameter(name = ".growthInterval", class = "numeric", default = 1, min = NA, max = NA, 
                     desc = "Which year does the simulation starts?")
   ),
   inputObjects = bind_rows(
@@ -110,44 +112,17 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     },
     gettingData = {
       Require("magrittr")
-      if (!suppliedElsewhere(object = "cohortData", sim = sim)){
-        message(crayon::yellow(paste0("cohortData not supplied by another module.", 
-                                      " Will try using files in inputPath(sim) or create dummy data")))
-        mod$cohortDataName <- grepMulti(x = list.files(inputPath(sim), 
-                                               recursive = TRUE), 
-                                patterns = c("cohortData", time(sim)))
-        if (length(mod$cohortDataName) == 0){
-          mod$cohortData <- NULL
-        } else {
-          mod$cohortData <- readRDS(file.path(inputPath(sim), mod$cohortDataName))
-        }
-        if (!is.null(mod$cohortData)) message(paste0("cohortData loaded from " , 
-                                                          crayon::magenta(file.path(inputPath(sim), mod$cohortDataName)),
-                                                          " for year ", time(sim)))
-      }
-      
-      if (!suppliedElsewhere(object = "pixelGroupMap", sim = sim)){
-        message(crayon::yellow(paste0("pixelGroupMap not supplied by another module." , 
-                                      " Will try using files in inputPath(sim) or create dummy data")))
-        mod$pixelGroupMapName <- grepMulti(x = list.files(inputPath(sim), 
-                                               recursive = TRUE), 
-                                patterns = c("pixelGroupMap", time(sim)))
-        if (length(mod$pixelGroupMapName) == 0) {
-          mod$pixelGroupMap <- NULL
-        } else {
-          mod$pixelGroupMap <- readRDS(file.path(inputPath(sim), mod$pixelGroupMapName))
-        }
-        if (!is.null(mod$pixelGroupMap)) message(paste0("pixelGroupMap loaded from ", 
-                                                        crayon::magenta(file.path(inputPath(sim), mod$cohortDataName)), 
-                                                        " for year ", time(sim)))
-      }
+      mod$cohortData <- createModObject(data = "cohortData", sim = sim, 
+                                        pathInput = inputPath(sim), currentTime = time(sim))
+      mod$pixelGroupMap <- createModObject(data = "pixelGroupMap", sim = sim, 
+                                           pathInput = inputPath(sim), currentTime = time(sim))
       
       if (any(is.null(mod$pixelGroupMap), is.null(mod$cohortData))) {
-      params(sim)$.useDummyData <- TRUE
+        params(sim)$.useDummyData <- TRUE
       }
       
       # schedule future event(s)
-      sim <- scheduleEvent(sim, time(sim) + 1, "caribouPopGrowthModel", "gettingData")
+      sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "gettingData")
       
     },
     growingCaribou = {
@@ -165,14 +140,12 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         if (is.null(sim$disturbances)){
           sim$disturbances <- list()
         }
-        cohortData <- if (!is.null(sim$cohortData)) sim$cohortData else mod$cohortData
-        pixelGroupMap <- if (!is.null(sim$pixelGroupMap)) sim$pixelGroupMap else mod$pixelGroupMap
 
         sim$disturbances <- getLayers(currentTime = time(sim),
                                      startTime = start(sim),
                                      endTime = end(sim),
-                                     cohortData = cohortData, # Has age info per pixel group
-                                     pixelGroupMap = pixelGroupMap,
+                                     cohortData = mod$cohortData, # Has age info per pixel group
+                                     pixelGroupMap = mod$pixelGroupMap,
                                      recoveryTime = P(sim)$recoveryTime,
                                      listSACaribou = sim$listSACaribou,
                                      anthropogenicLayer = sim$anthropogenicLayer,
@@ -189,7 +162,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                              popModel = P(sim)$popModel,
                                              listSACaribou = sim$listSACaribou)
       # schedule future event(s)
-        sim <- scheduleEvent(sim, time(sim) + 1, "caribouPopGrowthModel", "growingCaribou")
+      sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "growingCaribou") # JUST TO TEST!!! [ FIX ]
       
     },
     updatingPopulationSize = {
@@ -200,7 +173,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       names(sim$currentPop) <- names(sim$caribouModels)
 
       # schedule future event(s)
-      sim <- scheduleEvent(sim, time(sim) + 1, "caribouPopGrowthModel", "updatingPopulationSize")
+      sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "updatingPopulationSize")
       
     },
     plot = {

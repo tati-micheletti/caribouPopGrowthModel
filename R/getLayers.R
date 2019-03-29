@@ -44,9 +44,10 @@ getLayers <- function(currentTime,
                             anthropogenicLayer = anthropogenicLayer,
                             waterRaster = waterRaster)
     })
-    disturbances <- list(listDistForEachShpForEachPoly) # List of the year
+    covStack <- list(listDistForEachShpForEachPoly) # List of the year
     name <- paste0("Year", originalTime)
-    names(disturbances) <- name
+    names(covStack) <- name
+    
   } else {
     # Determine which pixels are deciduous
     setkey(cohortData, B)
@@ -100,6 +101,5 @@ getLayers <- function(currentTime,
     name <- paste0("Year", originalTime)
     names(covStack) <- name
   }
-  
   return(covStack)
 }
