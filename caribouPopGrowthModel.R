@@ -39,6 +39,9 @@ defineModule(sim, list(
     expectsInput(objectName = "caribouArea1", objectClass = "SpatialPolygonsDataFrame",
                  desc = "Study area to predict caribou population to (NWT_Regions_2015_LCs_DC_SS)",
                  sourceURL = "https://drive.google.com/open?id=1Qbt2pOvC8lGg25zhfMWcc3p6q3fZtBtO"),
+    expectsInput(objectName = "Edehzhie", objectClass = "SpatialPolygonsDataFrame",
+                 desc = "Study area to predict caribou pospulation to",
+                 sourceURL = "https://drive.google.com/open?id=1VP91AyIeGCFwJS9oPSEno4_SbtJQJMh7"),
     expectsInput(objectName = "caribouArea2", objectClass = "SpatialPolygonsDataFrame",
                  desc = "Study area to predict caribou population to (NT1_BOCA_spatial_units_for_landscape)",
                  sourceURL = "https://drive.google.com/open?id=1Vqny_ZMoksAjji4upnr3OiJl2laGeBGV"),
@@ -93,8 +96,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     eventType,
     init = {
       
-      sim$listSACaribou = list(sim$caribouArea1, sim$caribouArea2)
-      names(sim$listSACaribou) <- c("caribouArea1", "caribouArea2")
+      sim$listSACaribou = list(sim$caribouArea1, sim$caribouArea2, sim$Edehzhie)
+      names(sim$listSACaribou) <- c("caribouArea1", "caribouArea2", "Edehzhie")
       sim$predictedCaribou <- list()
 
       # schedule future event(s)
@@ -237,17 +240,23 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   }
   
   if (!suppliedElsewhere(object = "caribouArea2", sim = sim)){
-    sim$caribouArea2 <- cloudCache(prepInputs,
-                                url = extractURL("caribouArea2"),
-                                destinationPath = dataPath(sim), filename2 = "caribouArea2",
-                                useCloud = TRUE, cloudFolderID = cloudFolderID)
+    sim$caribouArea2 <- prepInputs(url = extractURL("caribouArea2"),
+                                destinationPath = dataPath(sim), filename2 = "caribouArea2")
   }
   if (!suppliedElsewhere("caribouArea1", sim)){
-    sim$caribouArea1 <- cloudCache(prepInputs,
-                                       url = extractURL("caribouArea1"), studyArea = sim$studyArea,
+    sim$caribouArea1 <- prepInputs(url = extractURL("caribouArea1"), studyArea = sim$studyArea,
                                        destinationPath = dataPath(sim), filename2 = "caribouArea1",
-                                       rasterToMatch = sim$rasterToMatch,
-                                       useCloud = TRUE, cloudFolderID = cloudFolderID)
+                                       rasterToMatch = sim$rasterToMatch)
+  }
+  
+  if (!suppliedElsewhere("Edehzhie", sim)){
+    sim$Edehzhie <- prepInputs(targetFile = "Edehzhie.shp",
+                               archive = "Edehzhie.zip",
+                               alsoExtract = "similar",
+                                   url = extractURL("Edehzhie"), studyArea = sim$studyArea,
+                                   destinationPath = dataPath(sim), filename2 = "Edehzhie",
+                                   rasterToMatch = sim$rasterToMatch)
+    sim$Edehzhie$Name <- sim$Edehzhie$NAME_1
   }
 
   if (!suppliedElsewhere("currentPop", sim) &
@@ -279,8 +288,10 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   }
 
   if (!suppliedElsewhere("anthropogenicLayer", sim)){
-  sim$anthropogenicLayer <- prepInputs(targetFile = "500mBufferedRoads_250m.tif",
-                                       url = "https://drive.google.com/open?id=1zj7zo8NBNhxxHMUL4ZnKTaP3niuQEI1m",
+  sim$anthropogenicLayer <- prepInputs(targetFile = "bufferMap_v0.1.0_m_r500_t0_anthrDisturb.grd",
+                                       archive = "bufferMap_v0.1.0_m_r500_t0_anthrDisturb.zip",
+                                       alsoExtract = "similar",
+                                       url = "https://drive.google.com/open?id=1GhnIjmKsZ3JoxTjefeeBUb02iiEcV_qD",
                                        destinationPath = dataPath(sim), studyArea = sim$studyArea,
                                        overwrite = TRUE, 
                                        rasterToMatch = sim$rasterToMatch)
