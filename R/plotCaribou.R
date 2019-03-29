@@ -5,7 +5,6 @@ plotCaribou <- function(startTime = start(sim),
                         yearSimulationStarts = P(sim)$yearSimulationStarts){
   
   reproducible::Require(ggplot2)
-  
   # Year -> Shapefile -> Polygon -> Model -> results
   tableAll <- rbindlist(lapply(X = 1:length(predictedCaribou), FUN = function(yr){ # here I extract the info for all locations and models, make a big table
     yrReady <- rbindlist(lapply(X = 1:length(predictedCaribou[[yr]]), FUN = function(shp){
@@ -29,8 +28,16 @@ plotCaribou <- function(startTime = start(sim),
     time <- as.integer(startTime:currentTime)
     }
   
-  yearTime <- data.table::data.table(Year = unique(tableAll$Year), 
-                                     Time = time + yearSimulationStarts)
+  if (length(unique(tableAll$Year)) < length(time)){
+    timeFixedForNotAnnual <- seq(startTime, endTime, by = 10)
+    timeFixedForNotAnnual[1] <- 1
+    yearTime <- data.table::data.table(Year = unique(tableAll$Year), 
+                                       Time = timeFixedForNotAnnual + yearSimulationStarts)
+  } else {
+    yearTime <- data.table::data.table(Year = unique(tableAll$Year), 
+                                       Time = time + yearSimulationStarts)
+  }
+  
   tableAll <- merge(tableAll, yearTime)
 
   tryCatch(quickPlot::clearPlot(), error = function(e){message(crayon::red("quickPlot::clearPlot() failed"))})
