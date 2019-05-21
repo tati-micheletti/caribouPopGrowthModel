@@ -238,15 +238,16 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                     cloudFolderID = sim$cloudFolderID, overwrite = TRUE, filename2 = NULL,
                                     omitArgs = c("destinationPath", "cloudFolderID", "useCloud", "overwrite", "filename2"))
   }
-  
   if (!suppliedElsewhere(object = "caribouArea2", sim = sim)){
-    sim$caribouArea2 <- prepInputs(url = extractURL("caribouArea2"),
+    sim$caribouArea2 <- prepInputs(url = extractURL("caribouArea2"), 
                                 destinationPath = dataPath(sim), filename2 = "caribouArea2")
   }
   if (!suppliedElsewhere("caribouArea1", sim)){
-    sim$caribouArea1 <- prepInputs(url = extractURL("caribouArea1"), studyArea = sim$studyArea,
-                                       destinationPath = dataPath(sim), filename2 = "caribouArea1",
-                                       rasterToMatch = sim$rasterToMatch)
+    # sim$caribouArea1 <- prepInputs(url = extractURL("caribouArea1"), studyArea = sim$studyArea,
+    #                                    destinationPath = dataPath(sim), filename2 = "caribouArea1",
+    #                                    rasterToMatch = sim$rasterToMatch)
+    sim$caribouArea1 <- prepInputs(url = extractURL("caribouArea1"), 
+                                   destinationPath = dataPath(sim), filename2 = "caribouArea1")
   }
   
   if (!suppliedElsewhere("Edehzhie", sim)){
