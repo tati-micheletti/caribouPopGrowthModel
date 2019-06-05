@@ -27,10 +27,10 @@ defineModule(sim, list(
                                                                             " Default is the simplest lamdba model")),
     defineParameter(name = "baseLayer", class = "character", default = 2005, min = NA, max = NA, 
                     desc = "Which layer should be used? LCC05 or LCC10?"),
-    defineParameter(name = "yearSimulationStarts", class = "numeric", default = 2010, min = NA, max = NA, 
+    defineParameter(name = "yearSimulationStarts", class = "numeric", default = start(sim), min = NA, max = NA, 
                     desc = "Which year does the simulation starts?"),
     defineParameter(name = ".growthInterval", class = "numeric", default = 1, min = NA, max = NA, 
-                    desc = "Which year does the simulation starts?")
+                    desc = "Interval of Population Growth. The current models are yearly based")
   ),
   inputObjects = bind_rows(
     expectsInput(objectName = "waterRaster", objectClass = "RasterLayer",
@@ -165,7 +165,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                              popModel = P(sim)$popModel,
                                              listSACaribou = sim$listSACaribou)
       # schedule future event(s)
-      sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "growingCaribou") # JUST TO TEST!!! [ FIX ]
+      sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "growingCaribou")
       
     },
     updatingPopulationSize = {
@@ -255,7 +255,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                archive = "Edehzhie.zip",
                                alsoExtract = "similar",
                                    url = extractURL("Edehzhie"), studyArea = sim$studyArea,
-                                   destinationPath = dataPath(sim), filename2 = "Edehzhie",
+                                   destinationPath = dataPath(sim), filename2 = NULL,
                                    rasterToMatch = sim$rasterToMatch)
     sim$Edehzhie$Name <- sim$Edehzhie$NAME_1
   }
