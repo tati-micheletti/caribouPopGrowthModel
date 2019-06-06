@@ -143,7 +143,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         if (is.null(sim$disturbances)){
           sim$disturbances <- list()
         }
-browser()
         sim$disturbances <- getLayers(currentTime = time(sim),
                                      startTime = start(sim),
                                      endTime = end(sim),
@@ -155,7 +154,7 @@ browser()
                                      waterRaster = sim$waterRaster,
                                      isRSF = FALSE)
       }
-
+browser()
       sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
                                              disturbances = sim$disturbances,
                                              currentPop = sim$currentPop,
