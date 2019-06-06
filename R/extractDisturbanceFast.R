@@ -33,6 +33,7 @@ extractDisturbanceFast <- function(ageMap,
   # Extract the caribou shapefile values by fasterizing it. Way faster than raster::extract
     caribouShapefile <- reproducible::postProcess(x = caribouShapefile, rasterToMatch = ageMap,
                                                     destinationPath = tempdir(), filename2 = NULL)
+  browser()
     caribouShapefileSF <- st_as_sf(caribouShapefile)
     caribouShapefileSF$ID <- as.numeric(seq(1:length(caribouShapefileSF$NAME)))
     caribouShapefileRas <- fasterize::fasterize(sf = caribouShapefileSF, raster = ageMap, field = "ID")
