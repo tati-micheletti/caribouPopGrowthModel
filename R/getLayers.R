@@ -38,7 +38,7 @@ getLayers <- function(currentTime,
   
   if (!isRSF){
     listDistForEachShpForEachPoly <- lapply(X = listSACaribou, FUN = function(caribouShapefile){
-      listPolyDist <- Cache(extractDisturbance, ageMap = ageMap,
+      listPolyDist <- extractDisturbanceFast(ageMap = ageMap,
                             caribouShapefile = caribouShapefile,
                             recoveryTime = recoveryTime,
                             anthropogenicLayer = anthropogenicLayer,
@@ -66,8 +66,7 @@ getLayers <- function(currentTime,
     # waterLayer = waterRaster
     # Deciduous = biomassMap
     
-    dynamicLayers <- Cache(createDynamicLayersRSF, 
-                           ageMap = ageMap,
+    dynamicLayers <- createDynamicLayersRSF(ageMap = ageMap,
                            biomassMap = biomassMap,
                            biomassMapName = "Deciduous",
                            oldBurnTime = oldBurnTime,
@@ -79,8 +78,7 @@ getLayers <- function(currentTime,
                            waterRasterName = "Water",
                            RTM = RTM)
     
-    staticLayers <- Cache(createStaticLayersRSF, 
-                          elevation = elevation,
+    staticLayers <- createStaticLayersRSF(elevation = elevation,
                           vrug = vrug,
                           LCC = LCC05,
                           shrubName = "Shrub",
@@ -91,7 +89,8 @@ getLayers <- function(currentTime,
                           dynamicLayers = dynamicLayers,
                           RTM = RTM)
     
-    # We need to override the LandR_Biomass pixels with deciduous trees that were originally classified as "herbaceous" by ECCC 
+    # We need to override the LandR_Biomass pixels with deciduous trees 
+    # that were originally classified as "herbaceous" by ECCC 
     dynamicLayers[["Deciduous"]] <- staticLayers[["Deciduous"]]
     staticLayers <- raster::dropLayer(staticLayers, i = which(names(staticLayers)=="Deciduous"))
     

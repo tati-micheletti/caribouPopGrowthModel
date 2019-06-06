@@ -13,7 +13,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
-  reqdPkgs = list("data.table", "ggplot2"),
+  reqdPkgs = list("data.table", "ggplot2",  "velox"),
   parameters = rbind(
     defineParameter(".useCache", "logical", FALSE, NA, NA, "Should this entire module be run with caching activated?"),
     defineParameter("meanFire", "numeric", 30.75, NA, NA, "Mean cummulative fire from ECCC Scientific report 2011"),
@@ -143,7 +143,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         if (is.null(sim$disturbances)){
           sim$disturbances <- list()
         }
-
+browser()
         sim$disturbances <- getLayers(currentTime = time(sim),
                                      startTime = start(sim),
                                      endTime = end(sim),

@@ -6,11 +6,11 @@ extractDisturbance <- function(ageMap = ageMap,
   
   # For fire disturbance; if not everything overlaps/matches, postProcess the layers
   tryCatch(expr = {
-    extrFire <- Cache(raster::extract, x = ageMap, y = caribouShapefile, na.rm = FALSE)
+    extrFire <- raster::extract(x = ageMap, y = caribouShapefile, na.rm = FALSE)
   }, error = function(e){
     reprojCaribouShape <- reproducible::postProcess(x = reprojCaribouShape, rasterToMatch = ageMap,
                                                           destinationPath = tempdir(), filename2 = NULL)
-    extrFire <- Cache(raster::extract, x = ageMap, y = reprojCaribouShape, na.rm = FALSE)
+    extrFire <- raster::extract(x = ageMap, y = reprojCaribouShape, na.rm = FALSE)
   }
   )
   
@@ -22,16 +22,26 @@ extractDisturbance <- function(ageMap = ageMap,
                                                     maskWithRTM = TRUE, destinationPath = tempdir(),
                                                     filename2 = NULL)
     tryCatch(expr = {
-      extrAnthro <- Cache(raster::extract, x = anthropogenicLayer, y = caribouShapefile, na.rm = FALSE)
+      # extrAnthro <- Cache(raster::extract, x = anthropogenicLayer, y = caribouShapefile, na.rm = FALSE)
+      backgroundWithoutWater <- rasterToMatch
+      backgroundWithoutWater[waterRaster == 1] <- NA
+      backgroundWithoutWater[!is.na(backgroundWithoutWater)] <- 0
+      backgroundWithoutWater[anthropogenicLayer == 1] <- 1
+      extrAnthro <- raster::extract(x = backgroundWithoutWater, y = caribouShapefile, na.rm = FALSE)
     }, error = function(e){
-      if (!exists(reprojCaribouShape))
-        reprojCaribouShape <- reproducible::postProcess(x = reprojCaribouShape, rasterToMatch = ageMap,
+        caribouShapefile <- reproducible::postProcess(x = caribouShapefile, rasterToMatch = ageMap,
                                                         destinationPath = tempdir(), filename2 = NULL)
       tryCatch({raster::stack(anthropogenicLayer, ageMap)}, error = function(e){
         anthropogenicLayer <- reproducible::postProcess(x = anthropogenicLayer, rasterToMatch = ageMap,
                                                         destinationPath = tempdir(), filename2 = NULL)
       })
-      extrAnthro <- Cache(raster::extract, x = anthropogenicLayer, y = reprojCaribouShape, na.rm = FALSE)
+      # We need to calculate percent disturbance ONLY for those pixels that are not water (non-NA) within BCR 6 NWT
+      # right now the anthropogenic layer has only NA's 
+      backgroundWithoutWater <- rasterToMatch
+      backgroundWithoutWater[waterRaster == 1] <- NA
+      backgroundWithoutWater[!is.na(backgroundWithoutWater)] <- 0
+      backgroundWithoutWater[anthropogenicLayer == 1] <- 1
+      extrAnthro <- raster::extract(x = backgroundWithoutWater, y = caribouShapefile, na.rm = FALSE)
     }
     )
   }
@@ -70,11 +80,12 @@ extractDisturbance <- function(ageMap = ageMap,
         extrAnthro[[eachPoly]] > 0
       cummAnthro <- sum(isDevelopment, na.rm = TRUE)
       percentAnthopo <- 100*(cummAnthro/totPixelsNotNAAnthro)
-      # We are calculating percent disturbance ONLY for those pixels that are not water (non-NA) within BCR 6 NWT
       
       # CREATE TOTAL DISTURBANCE USING FIRE OR ANTHROPO
       isDistrubance <- isDevelopment | isRecentFire
-      totPixelsNotNADist <- max(totPixelsNotNAFire, totPixelsNotNAAnthro)
+      totPixelsNotNADist <- max(totPixelsNotNAFire, totPixelsNotNAAnthro) # Total number of pixels that 
+      # can have any type of disturbance, so need to maximize (i.e. I might not be able to have fire, but 
+      # I sure could have anthropogenic)
       cummDist <- sum(isDistrubance, na.rm = TRUE)
       totalDisturbance <- 100*(cummDist/totPixelsNotNADist)
       # ===========================================================================================
@@ -83,6 +94,7 @@ extractDisturbance <- function(ageMap = ageMap,
     }
     # Data.frame of the disturbances:
     df <- data.frame(DH_Fire = percentFire, DH_Anthro = percentAnthopo, DH_Total = totalDisturbance)
+    # df <- data.frame(DH_Fire = percentFire, DH_Anthro = percentAnthopo, DH_Total = totalDisturbance) 
     
   })
   names(listExtr) <- caribouShapefile[[nm]]
