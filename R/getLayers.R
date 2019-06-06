@@ -45,6 +45,7 @@ getLayers <- function(currentTime,
                             anthropogenicLayer = anthropogenicLayer,
                             waterRaster = waterRaster)
     })
+    names(listDistForEachShpForEachPoly) <- names(listSACaribou)
     covStack <- list(listDistForEachShpForEachPoly) # List of the year
     name <- paste0("Year", originalTime)
     names(covStack) <- name
