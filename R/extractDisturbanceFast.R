@@ -33,9 +33,9 @@ extractDisturbanceFast <- function(ageMap,
   # Extract the caribou shapefile values by fasterizing it. Way faster than raster::extract
     caribouShapefile <- reproducible::postProcess(x = caribouShapefile, rasterToMatch = ageMap,
                                                     destinationPath = tempdir(), filename2 = NULL)
-  browser()
     caribouShapefileSF <- st_as_sf(caribouShapefile)
-    caribouShapefileSF$ID <- as.numeric(seq(1:length(caribouShapefileSF$NAME)))
+      nm <- if (!is.null(caribouShapefile$NAME)) "NAME" else "Name"
+    caribouShapefileSF$ID <- as.numeric(seq(1:length(caribouShapefileSF[[nm]])))
     caribouShapefileRas <- fasterize::fasterize(sf = caribouShapefileSF, raster = ageMap, field = "ID")
     
     # Extract Fire
@@ -79,7 +79,6 @@ extractDisturbanceFast <- function(ageMap,
           return(df)
     })
     #Naming both fire and anthro disturbances
-    nm <- if (!is.null(caribouShapefile$NAME)) "NAME" else "Name"
     names(listExtr) <- caribouShapefile[[nm]]
   return(listExtr)
 }
