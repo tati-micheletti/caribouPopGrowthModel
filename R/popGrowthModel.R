@@ -6,7 +6,7 @@ popGrowthModel <- function(caribouModels = sim$caribouModels, # <==== Caribou mo
                            adultFemaleSurv = sim$adultFemaleSurv,
                            popModel = P(sim)$popModel,
                            listSACaribou = sim$listSACaribou){
-
+browser()
   message("Growing some Caribous...")
   
   yearPrediction <- lapply(X = disturbances, FUN = function(yr){
