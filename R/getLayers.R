@@ -37,8 +37,11 @@ getLayers <- function(currentTime,
   names(ageMap) <- "ageMap"
   
   if (!isRSF){
+    message("Calculating disturbance for each shapefile...")
     browser()
     listDistForEachShpForEachPoly <- lapply(X = listSACaribou, FUN = function(caribouShapefile){
+      message("Calculating disturbance for ") # COMPLETE HERE
+      browser()
       listPolyDist <- extractDisturbanceFast(ageMap = ageMap,
                             caribouShapefile = caribouShapefile,
                             recoveryTime = recoveryTime,
