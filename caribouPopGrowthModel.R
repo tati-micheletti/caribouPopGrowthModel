@@ -154,7 +154,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                      waterRaster = sim$waterRaster,
                                      isRSF = FALSE)
       }
-browser()
       sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
                                              disturbances = sim$disturbances,
                                              currentPop = sim$currentPop,
