@@ -78,7 +78,6 @@ extractDisturbanceFast <- function(ageMap,
           return(df)
     })
     #Naming both fire and anthro disturbances
-browser()
     nm <- if (!is.null(caribouShapefile$NAME)) "NAME" else "Name"
     names(listExtr) <- caribouShapefile[[nm]]
   return(listExtr)
