@@ -45,7 +45,6 @@ getLayers <- function(currentTime,
                             anthropogenicLayer = anthropogenicLayer,
                             waterRaster = waterRaster)
     })
-    browser()
     covStack <- list(listDistForEachShpForEachPoly) # List of the year
     name <- paste0("Year", originalTime)
     names(covStack) <- name
