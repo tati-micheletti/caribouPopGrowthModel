@@ -121,7 +121,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                            pathInput = inputPath(sim), currentTime = time(sim))
       
       if (any(is.null(mod$pixelGroupMap), is.null(mod$cohortData))) {
-        params(sim)$.useDummyData <- TRUE
+        params(sim)[[currentModule(sim)]]$.useDummyData <- TRUE
       }
       
       # schedule future event(s)
@@ -129,8 +129,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       
     },
     growingCaribou = {
-      
-      if (params(sim)$.useDummyData == TRUE){
+      if (P(sim)$.useDummyData == TRUE){
         message(crayon::red(paste0("Disturbance total information (pixelGroupMap & cohortData) was not found.", 
                                    "\nGenerating DUMMY DATA to test the module.")))
         if (is.null(sim$disturbances)){
@@ -192,7 +191,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
 
 .inputObjects <- function(sim) {
   
-  params(sim)$.useDummyData <- FALSE
+  # THis is already set in metadata
+  # params(sim)[[currentModule(sim)]]$.useDummyData <- FALSE
   
   cloudFolderID <- "https://drive.google.com/open?id=1PoEkOkg_ixnAdDqqTQcun77nUvkEHDc0"
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
