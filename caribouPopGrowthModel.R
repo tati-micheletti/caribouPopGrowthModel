@@ -13,8 +13,10 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
-  reqdPkgs = list("data.table", "ggplot2",  "velox"),
+  reqdPkgs = list("data.table", "ggplot2"),
   parameters = rbind(
+    defineParameter("predictLastYear", "logical", TRUE, NA, NA, paste0("Should it schedule events for the last year",
+                                                                       " of simulation if this is not a multiple of interval?")),
     defineParameter(".useCache", "logical", FALSE, NA, NA, "Should this entire module be run with caching activated?"),
     defineParameter("meanFire", "numeric", 30.75, NA, NA, "Mean cummulative fire from ECCC Scientific report 2011"),
     defineParameter("sdFire", "numeric", 10.6, NA, NA, "SD cummulative fire from ECCC Scientific report 2011"),
@@ -86,8 +88,8 @@ defineModule(sim, list(
                                 " If not provided, it is created from sim$rstCurrentBurn", 
                                 " coming from scfmSpread")),
     createsOutput(objectName = "listSACaribou", objectClass = "list", 
-                  desc = paste0("List of caribou areas to prodict for",
-                                " Currently only takes 2 shapefiles"))
+                  desc = paste0("List of caribou areas to predict for",
+                                " Currently only takes 3 shapefiles"))
   )
 ))
 
@@ -164,7 +166,10 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                              listSACaribou = sim$listSACaribou)
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "growingCaribou")
-      
+      if (P(sim)$predictLastYear){
+        if (all(time(sim) == start(sim), (end(sim)-start(sim)) != 0))
+          sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "growingCaribou")
+      }
     },
     updatingPopulationSize = {
       

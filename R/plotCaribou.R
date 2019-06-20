@@ -6,10 +6,10 @@ plotCaribou <- function(startTime = start(sim),
   
   reproducible::Require(ggplot2)
   # Year -> Shapefile -> Polygon -> Model -> results
-  tableAll <- rbindlist(lapply(X = 1:length(predictedCaribou), FUN = function(yr){ # here I extract the info for all locations and models, make a big table
-    yrReady <- rbindlist(lapply(X = 1:length(predictedCaribou[[yr]]), FUN = function(shp){
-      shpReady <- rbindlist(lapply(X = 1:length(predictedCaribou[[yr]][[shp]]), function(ply){
-        polyReady <- rbindlist(lapply(X = 1:length(predictedCaribou[[yr]][[shp]][[ply]]), function(mod){
+  tableAll <- data.table::rbindlist(lapply(X = 1:length(predictedCaribou), FUN = function(yr){ # here I extract the info for all locations and models, make a big table
+    yrReady <- data.table::rbindlist(lapply(X = 1:length(predictedCaribou[[yr]]), FUN = function(shp){
+      shpReady <- data.table::rbindlist(lapply(X = 1:length(predictedCaribou[[yr]][[shp]]), function(ply){
+        polyReady <- data.table::rbindlist(lapply(X = 1:length(predictedCaribou[[yr]][[shp]][[ply]]), function(mod){
           predictedCaribou[[yr]][[shp]][[ply]][[mod]][["results"]]$Polygon <- names(predictedCaribou[[yr]][[shp]])[[ply]]
           predictedCaribou[[yr]][[shp]][[ply]][[mod]][["results"]]$CaribouArea <- names(predictedCaribou[[yr]])[[shp]]
           predictedCaribou[[yr]][[shp]][[ply]][[mod]][["results"]]$Year <- names(predictedCaribou)[[yr]]
@@ -21,7 +21,6 @@ plotCaribou <- function(startTime = start(sim),
     }))
   return(yrReady)
   }))
-  
   if ((length(unique(tableAll$Year)) != length(startTime:currentTime)) & (startTime == 0)){
     time <- as.integer(startTime + 1:currentTime) 
   } else {
@@ -59,7 +58,7 @@ plotCaribou <- function(startTime = start(sim),
     if(currentTime == endTime){
       
       tryCatch(quickPlot::clearPlot(), error = function(e){message(crayon::red("quickPlot::clearPlot() failed"))})
-      pngPath <- checkPath(file.path(getwd(), "outputs"), create = TRUE)
+      pngPath <- reproducible::checkPath(file.path(getwd(), "outputs"), create = TRUE)
       png(file.path(pngPath, 
                     paste0("caribou", shp, "_", 
                            toupper(format(Sys.time(), "%d%b%y")),".png")), 
