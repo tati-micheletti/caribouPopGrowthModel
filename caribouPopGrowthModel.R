@@ -182,11 +182,12 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       
     },
     plot = {
-        sim$plotCaribou <- plotCaribou(startTime = start(sim),
-                                       currentTime = time(sim),
-                                       endTime = end(sim),
-                                       predictedCaribou = sim$predictedCaribou,
-                                       yearSimulationStarts = P(sim)$yearSimulationStarts)
+      # THIS PLOT IS NOT WORKING. WILL FIX IT SOON.
+        # sim$plotCaribou <- plotCaribou(startTime = start(sim),
+        #                                currentTime = time(sim),
+        #                                endTime = end(sim),
+        #                                predictedCaribou = sim$predictedCaribou,
+        #                                yearSimulationStarts = P(sim)$yearSimulationStarts)
     },
     warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],
                   "' in module '", current(sim)[1, "moduleName", with = FALSE], "'", sep = ""))
