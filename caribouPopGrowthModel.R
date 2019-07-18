@@ -13,7 +13,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
-  reqdPkgs = list("data.table", "ggplot2"),
+  reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefun"),
   parameters = rbind(
     defineParameter("predictLastYear", "logical", TRUE, NA, NA, paste0("Should it schedule events for the last year",
                                                                        " of simulation if this is not a multiple of interval?")),
@@ -111,7 +111,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
     },
     makingModel = {
-      
       sim$caribouModels <- createModels(caribouCoefTable = sim$caribouCoefTable, 
                                         modelsToUse = sim$modelsToUse)
     },
@@ -135,27 +134,34 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         message(crayon::red(paste0("Disturbance total information (pixelGroupMap & cohortData) was not found.", 
                                    "\nGenerating DUMMY DATA to test the module.")))
         if (is.null(sim$disturbances)){
-          sim$disturbances <- list(Year0 = data.frame(disturbances = rnorm(n = 1, mean = P(sim)$meanFire, sd = P(sim)$sdFire)))
+          message(crayon::magenta(paste0("Assigning disturbance for the first time.")))
+          sim$disturbances <- list(assign(x = paste0("Year", time(sim)), 
+                                          value = data.frame(disturbances = rnorm(n = 1, 
+                                                                                  mean = P(sim)$meanFire, 
+                                                                                  sd = P(sim)$sdFire))))
         } else {
-          
-          sim$disturbances[[paste0("Year", time(sim))]] <- sim$disturbances[[paste0("Year", time(sim) - 1)]]
+          message(crayon::blue(paste0("Assigning disturbance from previous year.")))
+          sim$disturbances[[paste0("Year", time(sim))]] <- sim$disturbances[[paste0("Year", time(sim)-P(sim)$.growthInterval)]]
         }
+        params(sim)[[currentModule(sim)]]$.useDummyData <- FALSE # this guarantees that next year is gonna be checked for data 
       } else {
         if (is.null(sim$disturbances)){
           sim$disturbances <- list()
         }
-        sim$disturbances <- getLayers(currentTime = time(sim),
-                                     startTime = start(sim),
-                                     endTime = end(sim),
-                                     cohortData = mod$cohortData, # Has age info per pixel group
-                                     pixelGroupMap = mod$pixelGroupMap,
-                                     recoveryTime = P(sim)$recoveryTime,
-                                     listSACaribou = sim$listSACaribou,
-                                     anthropogenicLayer = sim$anthropogenicLayer,
-                                     waterRaster = sim$waterRaster,
-                                     isRSF = FALSE)
+        sim$disturbances[[paste0("Year", time(sim))]] <- getLayers(currentTime = time(sim),
+                                                                   startTime = start(sim),
+                                                                   endTime = end(sim),
+                                                                   cohortData = mod$cohortData, # Has age info per pixel group
+                                                                   pixelGroupMap = mod$pixelGroupMap,
+                                                                   recoveryTime = P(sim)$recoveryTime,
+                                                                   listSACaribou = sim$listSACaribou,
+                                                                   anthropogenicLayer = sim$anthropogenicLayer,
+                                                                   waterRaster = sim$waterRaster,
+                                                                   isRSF = FALSE,
+                                                                   rasterToMatch = sim$rasterToMatch)
       }
-      sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
+      if (!all(is.na(sim$disturbances[[paste0("Year", time(sim))]])))
+        sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
                                              disturbances = sim$disturbances,
                                              currentPop = sim$currentPop,
                                              currentTime = time(sim),
@@ -182,12 +188,11 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       
     },
     plot = {
-      # THIS PLOT IS NOT WORKING. WILL FIX IT SOON.
-        # sim$plotCaribou <- plotCaribou(startTime = start(sim),
-        #                                currentTime = time(sim),
-        #                                endTime = end(sim),
-        #                                predictedCaribou = sim$predictedCaribou,
-        #                                yearSimulationStarts = P(sim)$yearSimulationStarts)
+        sim$plotCaribou <- plotCaribou(startTime = start(sim),
+                                       currentTime = time(sim),
+                                       endTime = end(sim),
+                                       predictedCaribou = sim$predictedCaribou,
+                                       yearSimulationStarts = P(sim)$yearSimulationStarts)
     },
     warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],
                   "' in module '", current(sim)[1, "moduleName", with = FALSE], "'", sep = ""))
@@ -227,20 +232,18 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   }
     
   if (!suppliedElsewhere(object = "studyArea", sim = sim)){
-    sim$studyArea <- cloudCache(prepInputs,
+    sim$studyArea <- Cache(prepInputs,
                                 url = "https://drive.google.com/open?id=1LUxoY2-pgkCmmNH5goagBp3IMpj6YrdU",
                                 destinationPath = dataPath(sim),
-                                cloudFolderID = sim$cloudFolderID,
-                                omitArgs = c("destinationPath", "cloudFolderID"))
+                                omitArgs = "destinationPath")
   }
   
   if (!suppliedElsewhere(object = "rasterToMatch", sim = sim)){
-    sim$rasterToMatch <- cloudCache(prepInputs, url = "https://drive.google.com/open?id=1fo08FMACr_aTV03lteQ7KsaoN9xGx1Df", 
+    sim$rasterToMatch <- Cache(prepInputs, url = "https://drive.google.com/open?id=1fo08FMACr_aTV03lteQ7KsaoN9xGx1Df", 
                                     studyArea = sim$studyArea,
-                                    targetFile = "RTM.tif", destinationPath = dataPath(sim), 
-                                    useCloud = getOption("reproducible.useCloud", FALSE),
-                                    cloudFolderID = sim$cloudFolderID, overwrite = TRUE, filename2 = NULL,
-                                    omitArgs = c("destinationPath", "cloudFolderID", "useCloud", "overwrite", "filename2"))
+                                    targetFile = "RTM.tif", destinationPath = dataPath(sim),
+                               overwrite = TRUE, filename2 = NULL,
+                                    omitArgs = c("destinationPath", "overwrite", "filename2"))
   }
   if (!suppliedElsewhere(object = "caribouArea2", sim = sim)){
     sim$caribouArea2 <- prepInputs(url = extractURL("caribouArea2"), 

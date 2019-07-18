@@ -9,59 +9,43 @@ output: pdf_document
 
 ```{r module_usage}
 # Load SpaDES
+setwd("/mnt/data/Micheletti/NWT")
 library("SpaDES")
 library("raster")
 
-dayOfRecording <- today <- toupper(format(Sys.time(), "%d%b%y"))
-
-isTEST <- TRUE
-
-if (isTEST){
-    dayOfRecording <- "14MAR19"
-}
-
 # Source functions in R folder
 invisible(sapply(X = list.files(file.path(getwd(), "R"), full.names = TRUE), FUN = source))
+invisible(sapply(X = list.files(file.path(dirname(dirname(getwd())), "functions"), full.names = TRUE), FUN = source))
 
 # Set a storage project folder
 workDirectory <- getwd()
 message("Your current temporary directory is ", tempdir())
 
-checkInputPath <- tryCatch(checkPath(file.path(dirname(dirname(getwd())), "outputs", dayOfRecording)), error = function(e) NULL)
-if (is.null(checkInputPath)){
-  inpPath <- tempdir()
-} else {
-  inpPath <- checkInputPath
-}
-
-checkOutputPath <- tryCatch(checkPath(file.path(dirname(dirname(getwd())), "outputs", today)), error = function(e) NULL)
-if (is.null(checkOutputPath)){
-  outPath <- tempdir()
-} else {
-  outPath <- checkOutputPath
-}
-
-setPaths(modulePath = file.path(dirname(getwd())), 
-         inputPath = inpPath, outputPath = outPath)
+setPaths(modulePath = file.path(getwd(), "modules"), 
+         inputPath = file.path("/mnt/data/Micheletti/NWT/outputs/10JUL19/"), 
+         outputPath = file.path("/mnt/data/Micheletti/NWT/outputs/10JUL19/PopGrowth/"), 
+         cachePath = file.path("/mnt/data/Micheletti/NWT/cache/"))
 getPaths() # shows where the 4 relevant paths are
 
-times <- list(start = 0, end = 4)
+
+times <- list(start = 2001, end = 2100)
 
 parameters <- list(
-  #.progress = list(type = "text", interval = 1), # for a progress bar
-  ## If there are further modules, each can have its own set of parameters:
-  #module1 = list(param1 = value1, param2 = value2),
-  #module2 = list(param1 = value1, param2 = value2)
+  caribouPopGrowthModel = list(
+    ".plotInitialTime" = NULL,
+    "recoveryTime" = 40,
+    ".useDummyData" = FALSE,
+    ".growthInterval" = 5)
 )
 modules <- list("caribouPopGrowthModel")
-.objects <- list()
+objects <- list()
 inputs <- list()
 outputs <- list()
 
 if (quickPlot::isRstudioServer()) options(httr_oob_default = TRUE)
 
 caribous <- simInitAndSpades(times = times, params = parameters, modules = modules,
-                 objects = .objects)
+                 objects = objects)
 
 ```
 
