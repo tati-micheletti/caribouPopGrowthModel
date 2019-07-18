@@ -13,7 +13,7 @@ popGrowthModel <- function(caribouModels = sim$caribouModels, # <==== Caribou mo
     shpPrediction <- lapply(X = yr, FUN = function(shp){
       polyPrediction <- lapply(X = shp, FUN = function(polyg){
         predParams <- lapply(X = caribouModels, FUN = function(model){
-          attach(polyg)
+          attach(polyg) #DH_Fire DH_Anthro DH_Total
           recr <- eval(parse(text = model))
           detach(polyg)
           SadF <- adultFemaleSurv # ECCC 2012 set this to 0.85, and we do not have any LPU specific values for the NWT. Therefore, I am making this same assumption
