@@ -192,7 +192,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                        currentTime = time(sim),
                                        endTime = end(sim),
                                        predictedCaribou = sim$predictedCaribou,
-                                       yearSimulationStarts = P(sim)$yearSimulationStarts)
+                                       yearSimulationStarts = P(sim)$yearSimulationStarts,
+                                       outputFolder = outputPath(sim))
     },
     warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],
                   "' in module '", current(sim)[1, "moduleName", with = FALSE], "'", sep = ""))
