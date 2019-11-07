@@ -7,6 +7,7 @@ calculateDisturbance <- function(ras,
   lapply(X = seq_along(dots), FUN = function(each){
     assign(x = names(dots)[each], value = dots[[each]], envir = e)
   })
+  browser()
   vals <- raster::getValues(x = ras)
   shp[is.na(shp)] <- -1
   polValues <- vals[shp[] == as.numeric(pol)]
