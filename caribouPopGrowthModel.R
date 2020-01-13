@@ -243,23 +243,22 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     sim$rasterToMatch <- Cache(prepInputs, url = "https://drive.google.com/open?id=1fo08FMACr_aTV03lteQ7KsaoN9xGx1Df", 
                                     studyArea = sim$studyArea,
                                     targetFile = "RTM.tif", destinationPath = dataPath(sim),
-                               overwrite = TRUE, filename2 = NULL,
+                                    overwrite = TRUE, filename2 = NULL,
                                     omitArgs = c("destinationPath", "overwrite", "filename2"))
   }
   if (!suppliedElsewhere(object = "caribouArea2", sim = sim)){
-    sim$caribouArea2 <- prepInputs(url = extractURL("caribouArea2"), 
-                                destinationPath = dataPath(sim), filename2 = "caribouArea2")
+    sim$caribouArea2 <- Cache(prepInputs, url = extractURL("caribouArea2"),
+                                   targetFile = "NT1_BOCA_spatial_units_for_landscape_projections.shp",
+                                   destinationPath = dataPath(sim), filename2 = "caribouArea2")
   }
   if (!suppliedElsewhere("caribouArea1", sim)){
-    # sim$caribouArea1 <- prepInputs(url = extractURL("caribouArea1"), studyArea = sim$studyArea,
-    #                                    destinationPath = dataPath(sim), filename2 = "caribouArea1",
-    #                                    rasterToMatch = sim$rasterToMatch)
-    sim$caribouArea1 <- prepInputs(url = extractURL("caribouArea1"), 
+    sim$caribouArea1 <- Cache(prepInputs, url = extractURL("caribouArea1"),
+                                   targetFile = "NWT_Regions_2015_LCs_DC_SS_combined_NT1_clip_inc_Yukon.shp",
                                    destinationPath = dataPath(sim), filename2 = "caribouArea1")
   }
   
   if (!suppliedElsewhere("Edehzhie", sim)){
-    sim$Edehzhie <- prepInputs(targetFile = "Edehzhie.shp",
+    sim$Edehzhie <- Cache(prepInputs, targetFile = "Edehzhie.shp",
                                archive = "Edehzhie.zip",
                                alsoExtract = "similar",
                                    url = extractURL("Edehzhie"), studyArea = sim$studyArea,
