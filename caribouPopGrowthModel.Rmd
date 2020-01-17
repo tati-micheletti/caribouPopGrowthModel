@@ -1,6 +1,6 @@
 ---
-title: "caribouPopGrowthModel"
-author: ''
+title: "Caribou Population Growth Model: SpaDES Module"
+author: "Tati Micheletti & Frances Stewart"
 date: "15 February 2019"
 output:
   html_document:
