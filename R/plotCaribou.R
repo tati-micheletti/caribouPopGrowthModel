@@ -1,8 +1,9 @@
-plotCaribou <- function(startTime = start(sim),
-                        currentTime = time(sim),
-                        endTime = end(sim),
-                        predictedCaribou = sim$predictedCaribou,
-                        yearSimulationStarts = P(sim)$yearSimulationStarts){
+plotCaribou <- function(startTime,
+                        currentTime,
+                        endTime,
+                        predictedCaribou,
+                        yearSimulationStarts,
+                        outputFolder){
   library("reproducible")
   reproducible::Require(ggplot2)
   # Year -> Shapefile -> Polygon -> Model -> results
@@ -58,8 +59,7 @@ if (is(predictedCaribou, "list")){
     if(currentTime == endTime){
       
       tryCatch(quickPlot::clearPlot(), error = function(e){message(crayon::red("quickPlot::clearPlot() failed"))})
-      pngPath <- reproducible::checkPath(file.path(getwd(), "outputs"), create = TRUE)
-      png(file.path(pngPath, 
+      png(file.path(outputFolder, 
                     paste0("caribou", shp, "_", 
                            toupper(format(Sys.time(), "%d%b%y")),".png")), 
           width = 700, height = 480)
