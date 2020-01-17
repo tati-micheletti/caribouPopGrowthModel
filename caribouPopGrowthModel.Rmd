@@ -128,3 +128,7 @@ In the last year of the simulation, the module plots lambda through time
 
 This module needs to be linked to a vegetation and disturbance modules that generate pixelGroupMap maps and cohortData tables. Otherwise, there is the need for a translation module from disturtance map outputs.
 
+# Link to the the SpaDES module's R script
+
+[Here is the SpaDES module's R script](https://github.com/tati-micheletti/caribouPopGrowthModel/blob/master/caribouPopGrowthModel.R)
+
