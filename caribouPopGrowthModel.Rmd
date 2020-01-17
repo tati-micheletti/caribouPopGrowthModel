@@ -1,9 +1,15 @@
 ---
 title: "caribouPopGrowthModel"
-author: ""
+author: ''
 date: "15 February 2019"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = FALSE, echo = TRUE, eval = FALSE)
+```
 
 # Usage
 
@@ -19,7 +25,7 @@ invisible(sapply(X = list.files(file.path(dirname(dirname(getwd())), "functions"
 
 # Set a storage project folder
 workDirectory <- getwd()
-message("Your current temporary directory is ", tempdir())
+message("Your current temporary directory is  tempdir()")
 
 setPaths(modulePath = file.path(getwd(), "modules"), 
          inputPath = file.path("/mnt/data/Micheletti/NWT/outputs/10JUL19/"), 
@@ -51,28 +57,74 @@ caribous <- simInitAndSpades(times = times, params = parameters, modules = modul
 
 # Events
 
-Describe what happens for each event type.
+1. makingModel: Uses the function `createModels(caribouCoefTable, modelsToUse)` to create a `data.table` using the coefficients from one of the specific models coming from ECCC 2012 report.   
+
+2. gettingData:  looks for landscape maps (two objects: `pixelGroupMap` and `cohortData`) using the function `createModObject()` either in the `simList` or in the `inputPath()`. These are the objects that will be used for calculating the model parameters.  
+
+3. growingCaribou: resolves the mathematical equation of the model and using a recruitment-habitat relationship, calculates lambda.     
+
+4. plot: described below
 
 ## Plotting
 
-Write what is plotted.
-
-## Saving
-
-Write what is saved.
-
-# Data dependencies
+In the last year of the simulation, the module plots lambda through time
 
 ## Input data
 
-How to obtain input data, and a description of the data required by the module.
-If `sourceURL` is specified, `downloadData("caribouPopGrowthModel", "path/to/modules/dir")` may be sufficient.
+    waterRaster: RasterLayer
+                 desription: Wetland raster for excluding water from anthropogenic layer
+    caribouArea1: SpatialPolygonsDataFrame
+                 desription: Study area to predict caribou population to (NWT_Regions_2015_LCs_DC_SS)
+                 sourceURL = "https://drive.google.com/open?id=1Qbt2pOvC8lGg25zhfMWcc3p6q3fZtBtO"),
+    Edehzhie: SpatialPolygonsDataFrame
+                 desription: Study area to predict caribou pospulation to
+                 sourceURL = "https://drive.google.com/open?id=1VP91AyIeGCFwJS9oPSEno4_SbtJQJMh7"),
+    caribouArea2: SpatialPolygonsDataFrame
+                 desription: Study area to predict caribou population to (NT1_BOCA_spatial_units_for_landscape)
+                 sourceURL = "https://drive.google.com/open?id=1Vqny_ZMoksAjji4upnr3OiJl2laGeBGV"),
+    currentPop: numeric 
+                 desription: Caribou population size in the study area. Is updated every time step
+    adultFemaleSurv: numeric 
+                 desription: Caribou female survival probability in the study area. Default of 0.85
+    pixelGroupMap: RasterLayer
+                 desription: Map of groups of pixels that share the same info from cohortData (sp, age, biomass, etc).
+                 Should at some point be genrated by the fire model (i.e. scfmSpread)
+    cohortData: data.table
+                 desription: data.table with information by pixel group of sp, age, biomass, etc
+    anthropogenicLayer: RasterLayer
+                 desription: Layer that maps the % of anthropogenic disturbance of in each pixel. 
+                               "This layer is static if no modules are forecasting anthropogenic disturbances
+    modelsToUse: character 
+                 desription: Which models from ECCC to be used?
+    caribouData: data.table 
+                 desription: Data containing recruitment and other pop covariates 
+                 sourceURL = "https://drive.google.com/open?id=1SOimSD2jehRxV-SbMmgLUh3W5yStwhdq
+    provinces: character 
+                 desription: Which province caribou data should be used for the module?"),
+    caribouCoefTable: data.table 
+                 desription: Published caribou coefficients 
+                 sourceURL = "https://drive.google.com/open?id=14ck35G8A3A6s65vSAWWeUp2_vXgmYZe5
 
 ## Output data
 
-Description of the module outputs.
+    caribouModels: list
+                 description: List with model equations. Default is M3 (ECCC 2011, Table 56) downloaded if needed.
+    predictedCaribou: list
+                  description: Data.table that contains the total population size per year, as well as other parameters
+    currentPop: numeric
+                  description: Caribou population size in the study area. Is updated every time step
+    plotCaribou: ggplot2
+                  description: Caribou population size through time
+    disturbances: list
+                  description: disturbances is a list of shapefiles that have polygons with 
+                                the total disturbance in the area in percentage.
+                                If not provided, it is created from sim$rstCurrentBurn
+                                coming from scfmSpread.
+    listSACaribou: list
+                  description: List of caribou areas to predict for
+                                Currently only takes 3 shapefiles
 
 # Links to other modules
 
-Describe any anticipated linkages to other modules.
+This module needs to be linked to a vegetation and disturbance modules that generate pixelGroupMap maps and cohortData tables. Otherwise, there is the need for a translation module from disturtance map outputs.
 
