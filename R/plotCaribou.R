@@ -4,8 +4,7 @@ plotCaribou <- function(startTime,
                         predictedCaribou,
                         yearSimulationStarts,
                         outputFolder){
-  library("reproducible")
-  reproducible::Require(ggplot2)
+
   # Year -> Shapefile -> Polygon -> Model -> results
 if (is(predictedCaribou, "list")){
   tableAll <- data.table::rbindlist(lapply(X = 1:length(predictedCaribou), FUN = function(yr){ # here I extract the info for all locations and models, make a big table

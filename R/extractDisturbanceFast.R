@@ -68,7 +68,7 @@
 #       # over the total number of pixels "available" to burn (non-NA, as NA can be cities/water/etc).
 #       # Then multiply by 100 to work with %.
 #       # We are calculating percent disturbance ONLY for those pixels that are forest/within BCR 6 NWT
-#           percentFire <- usefun::calculatePixelsInaRule(ras = ageMap,
+#           percentFire <- usefulFuns::calculatePixelsInaRule(ras = ageMap,
 #                                               rule = "<= recoveryTime", # Need to be a character string of the rule
 #                                               pol = pol,
 #                                               shp = caribouShapefileRas,

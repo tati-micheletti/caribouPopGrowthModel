@@ -15,7 +15,6 @@ knitr::opts_chunk$set(cache = FALSE, echo = TRUE, eval = FALSE)
 
 ```{r module_usage}
 # Load SpaDES
-setwd("/mnt/data/Micheletti/NWT")
 library("SpaDES")
 library("raster")
 
@@ -28,9 +27,9 @@ workDirectory <- getwd()
 message("Your current temporary directory is  tempdir()")
 
 setPaths(modulePath = file.path(getwd(), "modules"), 
-         inputPath = file.path("/mnt/data/Micheletti/NWT/outputs/10JUL19/"), 
-         outputPath = file.path("/mnt/data/Micheletti/NWT/outputs/10JUL19/PopGrowth/"), 
-         cachePath = file.path("/mnt/data/Micheletti/NWT/cache/"))
+         inputPath = file.path("~/outputs/10JUL19/"), 
+         outputPath = file.path("~/outputs/10JUL19/PopGrowth/"), 
+         cachePath = file.path("~/cache/"))
 getPaths() # shows where the 4 relevant paths are
 
 

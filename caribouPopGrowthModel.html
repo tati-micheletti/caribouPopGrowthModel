@@ -190,7 +190,7 @@ summary {
 <div id="usage" class="section level1">
 <h1>Usage</h1>
 <pre class="r"><code># Load SpaDES
-setwd(&quot;/mnt/data/Micheletti/NWT&quot;)
+setwd(&quot;~&quot;)
 library(&quot;SpaDES&quot;)
 library(&quot;raster&quot;)
 
@@ -203,9 +203,9 @@ workDirectory &lt;- getwd()
 message(&quot;Your current temporary directory is  tempdir()&quot;)
 
 setPaths(modulePath = file.path(getwd(), &quot;modules&quot;), 
-         inputPath = file.path(&quot;/mnt/data/Micheletti/NWT/outputs/10JUL19/&quot;), 
-         outputPath = file.path(&quot;/mnt/data/Micheletti/NWT/outputs/10JUL19/PopGrowth/&quot;), 
-         cachePath = file.path(&quot;/mnt/data/Micheletti/NWT/cache/&quot;))
+         inputPath = file.path(&quot;~/outputs/10JUL19/&quot;), 
+         outputPath = file.path(&quot;~/outputs/10JUL19/PopGrowth/&quot;), 
+         cachePath = file.path(&quot;~/cache/&quot;))
 getPaths() # shows where the 4 relevant paths are
 
 

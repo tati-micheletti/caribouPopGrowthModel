@@ -13,7 +13,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
-  reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefun"),
+  reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns"),
   parameters = rbind(
     defineParameter("predictLastYear", "logical", TRUE, NA, NA, paste0("Should it schedule events for the last year",
                                                                        " of simulation if this is not a multiple of interval?")),
@@ -148,7 +148,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         if (is.null(sim$disturbances)){
           sim$disturbances <- list()
         }
-        sim$disturbances[[paste0("Year", time(sim))]] <- getLayers(currentTime = time(sim),
+        sim$disturbances[[paste0("Year", time(sim))]] <- usefulFuns::getLayers(currentTime = time(sim),
                                                                    startTime = start(sim),
                                                                    endTime = end(sim),
                                                                    cohortData = mod$cohortData, # Has age info per pixel group
@@ -158,7 +158,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                                                    anthropogenicLayer = sim$anthropogenicLayer,
                                                                    waterRaster = sim$waterRaster,
                                                                    isRSF = FALSE,
-                                                                   rasterToMatch = sim$rasterToMatch)
+                                                                   rasterToMatch = sim$rasterToMatch,
+                                                                   destinationPath = dataPath(sim))
       }
       if (!all(is.na(sim$disturbances[[paste0("Year", time(sim))]])))
         sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
