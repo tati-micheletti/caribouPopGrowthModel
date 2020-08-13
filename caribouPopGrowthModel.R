@@ -291,8 +291,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                              studyArea = sim$studyArea,
                              userTags = c("objectName:wetLCC"))
   waterVals <- raster::getValues(sim$waterRaster) # Uplands = 3, Water = 1, Wetlands = 2, so 2 and 3 to NA
-  waterVals[waterVals == 1] <- NA
-  waterVals[waterVals > 1] <- 1
+  waterVals[!is.na(waterVals) & waterVals != 1] <- 0
   sim$waterRaster <- raster::setValues(sim$waterRaster, waterVals)
   }
 
