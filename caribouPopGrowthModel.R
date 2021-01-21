@@ -148,7 +148,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         if (is.null(sim$disturbances)){
           sim$disturbances <- list()
         }
-        sim$disturbances[[paste0("Year", time(sim))]] <- usefulFuns::getLayers(currentTime = time(sim),
+        sim$disturbances[[paste0("Year", time(sim))]] <- getLayersCaribou(currentTime = time(sim),
                                                                    startTime = start(sim),
                                                                    endTime = end(sim),
                                                                    cohortData = mod$cohortData, # Has age info per pixel group
