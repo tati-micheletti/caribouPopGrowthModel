@@ -1,13 +1,13 @@
 defineModule(sim, list(
   name = "caribouPopGrowthModel",
   description = paste0("Module to simulate Caribou population growth, based", 
-                       " on lambda using published ECCC data"),
+                       " on lambda using published ECCC data or Johnson et al., 2020 models"),
   keywords = c("Caribou", "population", "lambda"),
   authors = c(person("Tati", "Micheletti", email = "tati.micheletti@gmail.com", role = c("aut", "cre")),
               person("Frances", "Stewart", email = "frances.stewart@canada.ca", role = c("aut", "cre")),
               person("Eliot", "McIntire", email = "Eliot.McIntire@canada.ca", role = c("aut", "cre"))),
   childModules = character(0),
-  version = list(SpaDES.core = "0.2.5", caribouPopGrowthModel = "0.0.1"),
+  version = list(SpaDES.core = "0.2.5", caribouPopGrowthModel = "0.2.0"),
   spatialExtent = raster::extent(rep(NA_real_, 4)),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
@@ -18,19 +18,18 @@ defineModule(sim, list(
     defineParameter("predictLastYear", "logical", TRUE, NA, NA, paste0("Should it schedule events for the last year",
                                                                        " of simulation if this is not a multiple of interval?")),
     defineParameter(".useCache", "logical", FALSE, NA, NA, "Should this entire module be run with caching activated?"),
-    defineParameter("meanFire", "numeric", 30.75, NA, NA, "Mean cummulative fire from ECCC Scientific report 2011"),
-    defineParameter("sdFire", "numeric", 10.6, NA, NA, "SD cummulative fire from ECCC Scientific report 2011"),
+    defineParameter("meanFire", "numeric", 30.75, NA, NA, "Mean cummulative fire from ECCC Scientific report 2011. Used as dummy data."),
+    defineParameter("sdFire", "numeric", 10.6, NA, NA, "SD cummulative fire from ECCC Scientific report 2011. Used as dummy data."),
     defineParameter(".plotInitialTime", "numeric", start(sim) + 1, NA, NA, "inital plot time"),
     defineParameter(".plotTimeInterval", "numeric", 1, NA, NA, "Interval of plotting time"),
-    defineParameter(".useDummyData", "logical", FALSE, NA, NA, "Should use dummy data? Automatically set"),
-    defineParameter("recoveryTime", "numeric", 40, NA, NA, "Time to recover the forest enough for caribou"),
+    defineParameter(".useDummyData", "logical", FALSE, NA, NA, "Should use dummy data? Automatically set when data is not available"),
+    defineParameter("recoveryTime", "numeric", 40, NA, NA, "Time to recover the forest enough for caribou (ECCC 2011; Johnson et al. 2020)"),
     defineParameter("popModel", "character", "annualLambda", NA, NA, paste0("Which population model to use? Options", 
                                                                             "are in the file popModels.R in the R folder", 
                                                                             " Default is the simplest lamdba model")),
     defineParameter(name = "baseLayer", class = "character", default = 2005, min = NA, max = NA, 
-                    desc = "Which layer should be used? LCC05 or LCC10?"),
-    defineParameter(name = "yearSimulationStarts", class = "numeric", default = start(sim), min = NA, max = NA, 
-                    desc = "Which year does the simulation starts?"),
+                    desc = paste0("Which layer should be used? LCC05 or LCC10? Only used if ",
+                                  "waterRaster is not supplied. Used to derive the water layer")),
     defineParameter(name = ".growthInterval", class = "numeric", default = 1, min = NA, max = NA, 
                     desc = "Interval of Population Growth. The current models are yearly based")
   ),
@@ -97,6 +96,15 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   switch(
     eventType,
     init = {
+      # If model is annualLambda but the user passes .growthInterval, 
+      # use timestepLambda instead
+      if (all(P(sim)$popModel == "annualLambda",
+          P(sim)$.growthInterval != 1)){
+        warning(paste0("'annualLambda' defined as popModel but .growthInterval supplied ",
+                       "and different than 1. Updating popModel to 'timestepLambda'"), 
+                immediate. = TRUE)
+        params(sim)[[currentModule(sim)]]$popModel <- "timestepLambda"
+      }
       
       sim$listSACaribou = list(sim$caribouArea1, sim$caribouArea2, sim$Edehzhie)
       names(sim$listSACaribou) <- c("caribouArea1", "caribouArea2", "Edehzhie")
@@ -193,7 +201,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                        currentTime = time(sim),
                                        endTime = end(sim),
                                        predictedCaribou = sim$predictedCaribou,
-                                       yearSimulationStarts = P(sim)$yearSimulationStarts,
+                                       yearSimulationStarts = start(sim),
                                        outputFolder = outputPath(sim))
     },
     warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],

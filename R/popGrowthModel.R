@@ -21,8 +21,6 @@ popGrowthModel <- function(caribouModels = sim$caribouModels, # <==== Caribou mo
           if (class(currentPop) == "list"){
             currentPop <- currentPop[[model]]
           }
-          param <- do.call(what = popModel, args = list(N = currentPop,
-                                                        SadF = SadF,recr = recr))
           dt <- data.table::data.table(Rec = mean(recr),
                                        minRec = min(recr),
                                        maxRec = max(recr),
