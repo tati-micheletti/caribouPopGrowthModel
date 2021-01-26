@@ -21,14 +21,14 @@ annualGrowthLogistic <- function(N, SadF, recr){
 
 # Simple lambda model (i.e. realized population growth rate)
 annualLambda <- function(SadF, recr, ...){
-mortF <- (1-SadF)*100
-newL <- round((100-mortF)/(100-(recr/2)), 2) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006
-return(newL)
+  mortF <- (1-SadF)*100
+  newL <- (100-mortF)/(100-(100*recr/2)) # basic McLaughlin et al. 2003 lambda model, also used in Sorrensen et al. 2006
+  return(newL)
 }
 
 timestepLambda <- function(SadF, recr, ts = 10, ...){ 
   return(annualLambda(SadF, recr, ...) ^ ts)
-  }
+}
 
 # more complicated population model - non-stochastic, but logistic (i.e. density-dependent)
 annualGrowthLogisticLambda <- function(N, SadF, recr, ...){

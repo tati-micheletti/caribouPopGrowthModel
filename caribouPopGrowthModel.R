@@ -3,9 +3,12 @@ defineModule(sim, list(
   description = paste0("Module to simulate Caribou population growth, based", 
                        " on lambda using published ECCC data or Johnson et al., 2020 models"),
   keywords = c("Caribou", "population", "lambda"),
-  authors = c(person("Tati", "Micheletti", email = "tati.micheletti@gmail.com", role = c("aut", "cre")),
-              person("Frances", "Stewart", email = "frances.stewart@canada.ca", role = c("aut", "cre")),
-              person("Eliot", "McIntire", email = "Eliot.McIntire@canada.ca", role = c("aut", "cre"))),
+  authors = c(person("Tati", "Micheletti", email = "tati.micheletti@gmail.com", 
+                     role = c("aut", "cre")),
+              person("Frances", "Stewart", email = "frances.stewart@canada.ca", 
+                     role = c("aut", "cre")),
+              person("Eliot", "McIntire", email = "Eliot.McIntire@canada.ca", 
+                     role = c("aut", "cre"))),
   childModules = character(0),
   version = list(SpaDES.core = "0.2.5", caribouPopGrowthModel = "0.2.0"),
   spatialExtent = raster::extent(rep(NA_real_, 4)),
@@ -13,82 +16,135 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
-  reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns"),
+  reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns", "tictoc",
+                  "future", "future.apply"),
   parameters = rbind(
-    defineParameter("predictLastYear", "logical", TRUE, NA, NA, paste0("Should it schedule events for the last year",
-                                                                       " of simulation if this is not a multiple of interval?")),
-    defineParameter(".useCache", "logical", FALSE, NA, NA, "Should this entire module be run with caching activated?"),
-    defineParameter("meanFire", "numeric", 30.75, NA, NA, "Mean cummulative fire from ECCC Scientific report 2011. Used as dummy data."),
-    defineParameter("sdFire", "numeric", 10.6, NA, NA, "SD cummulative fire from ECCC Scientific report 2011. Used as dummy data."),
-    defineParameter(".plotInitialTime", "numeric", start(sim) + 1, NA, NA, "inital plot time"),
-    defineParameter(".plotTimeInterval", "numeric", 1, NA, NA, "Interval of plotting time"),
-    defineParameter(".useDummyData", "logical", FALSE, NA, NA, "Should use dummy data? Automatically set when data is not available"),
-    defineParameter("recoveryTime", "numeric", 40, NA, NA, "Time to recover the forest enough for caribou (ECCC 2011; Johnson et al. 2020)"),
-    defineParameter("popModel", "character", "annualLambda", NA, NA, paste0("Which population model to use? Options", 
-                                                                            "are in the file popModels.R in the R folder", 
-                                                                            " Default is the simplest lamdba model")),
+    defineParameter("predictLastYear", "logical", TRUE, NA, NA, 
+                    paste0("Should it schedule events for the last year",
+                           " of simulation if this is not a multiple of interval?")),
+    defineParameter(".useCache", "logical", FALSE, NA, NA, 
+                    "Should this entire module be run with caching activated?"),
+    defineParameter("nBootstrap", "numeric", 100, NA, NA, 
+                    "How many bootstrap replicates do we want for the coefficients?"),
+    defineParameter(".plotInitialTime", "numeric", start(sim) + 1, NA, NA, 
+                    "inital plot time"),
+    defineParameter(".plotTimeInterval", "numeric", 1, NA, NA, 
+                    "Interval of plotting time"),
+    defineParameter(".useDummyData", "logical", FALSE, NA, NA, 
+                    "Should use dummy data? Automatically set when data is not available"),
+    defineParameter("recoveryTime", "numeric", 40, NA, NA, 
+                    paste0("Time to recover the forest ",
+                           "enough for caribou (ECCC 2011; Johnson et al. 2020)")),
+    defineParameter("popModel", "character", "annualLambda", NA, NA, 
+                    paste0("Which population model to use? Options",
+                           "are in the file popModels.R in the R folder",
+                           " Default is the simplest lamdba model")),
     defineParameter(name = "baseLayer", class = "character", default = 2005, min = NA, max = NA, 
                     desc = paste0("Which layer should be used? LCC05 or LCC10? Only used if ",
                                   "waterRaster is not supplied. Used to derive the water layer")),
-    defineParameter(name = ".growthInterval", class = "numeric", default = 1, min = NA, max = NA, 
-                    desc = "Interval of Population Growth. The current models are yearly based")
+    defineParameter(name = ".growthInterval", class = "numeric", default = 1, 
+                    min = NA, max = NA, 
+                    desc = paste0("Interval of Population Growth. ",
+                                  "The default value is 1 (yearly projections)")),
+    defineParameter(name = "recruitmentModelVersion", class = "character",
+                    default = "Johnson", min = NA, max = NA, 
+                    desc = paste0("Two options available: ",
+                                  "'Johnson' (Johnson et al., 2020) ",
+                                  "'ECCC' (ECCC, 2011).")),
+    defineParameter(name = "femaleSurvivalModelVersion", class = "character",
+                    default = "Johnson", min = NA, max = NA, 
+                    desc = paste0("Currently, only this option is available",
+                                  "'Johnson' (Johnson et al., 2020) ")),
+    defineParameter(name = "useFuture", class = "logic",
+                    default = TRUE, min = NA, max = NA, 
+                    desc = paste0("If useFuture, parallel processing will be",
+                                  "tried based on available cores. If running in ",
+                                  "RStudio, this will fall back to sequential as ",
+                                  "future does NOT yet supports 'multicore' plan in",
+                                  " RStudio. If parallelizing is important, please ",
+                                  "consider running this module in R Gui")),
+    defineParameter(name = "Type", class = "character",
+                    default = "National", min = NA, max = NA, 
+                    desc = paste0("Only option available for now")),
+    defineParameter(name = "femaleSurvivalModelNumber", class = "character", 
+                    default = "M1", min = NA, max = NA, 
+                    desc = paste0("Which female survival model should be used for the simulations?",
+                                  "Models available are M1:M5_Johnson")),
+    defineParameter(name = "recruitmentModelNumber", class = "character", 
+                    default = "M4", min = NA, max = NA, 
+                    desc = paste0("Which recruitment model should be used for the simulations?",
+                                  "Models available are M3, M7 and M8 (ECCC); M1:M5 (Johnson)"))
   ),
   inputObjects = bind_rows(
     expectsInput(objectName = "waterRaster", objectClass = "RasterLayer",
                  desc = "Wetland raster for excluding water from anthropogenic layer",
                  sourceURL = NA),
-    expectsInput(objectName = "caribouArea1", objectClass = "SpatialPolygonsDataFrame",
-                 desc = "Study area to predict caribou population to (NWT_Regions_2015_LCs_DC_SS)",
-                 sourceURL = "https://drive.google.com/open?id=1Qbt2pOvC8lGg25zhfMWcc3p6q3fZtBtO"),
-    expectsInput(objectName = "Edehzhie", objectClass = "SpatialPolygonsDataFrame",
-                 desc = "Study area to predict caribou pospulation to",
-                 sourceURL = "https://drive.google.com/open?id=1VP91AyIeGCFwJS9oPSEno4_SbtJQJMh7"),
-    expectsInput(objectName = "caribouArea2", objectClass = "SpatialPolygonsDataFrame",
-                 desc = "Study area to predict caribou population to (NT1_BOCA_spatial_units_for_landscape)",
-                 sourceURL = "https://drive.google.com/open?id=1Vqny_ZMoksAjji4upnr3OiJl2laGeBGV"),
     expectsInput(objectName = "currentPop", objectClass = "numeric", 
                  desc = "Caribou population size in the study area. Is updated every time step",
-                 sourceURL = NA),
-    expectsInput(objectName = "adultFemaleSurv", objectClass = "numeric", 
-                 desc = "Caribou female survival probability in the study area. Default of 0.85",
                  sourceURL = NA),
     expectsInput(objectName = "pixelGroupMap", objectClass = "RasterLayer",
                  desc = paste0("Map of groups of pixels that share the same info from cohortData (sp, age, biomass, etc).",
                                " Should at some point be genrated by the fire model (i.e. scfmSpread)")),
     expectsInput(objectName = "cohortData", objectClass = "data.table",
                  desc = paste0("data.table with information by pixel group of sp, age, biomass, etc")),
-    expectsInput(objectName = "anthropogenicLayer", objectClass = "RasterLayer",
-                 desc = paste0("Layer that maps the % of anthropogenic disturbance of in each pixel.", 
+    expectsInput(objectName = "bufferedAnthropogenicDisturbance500m", objectClass = "RasterLayer",
+                 desc = paste0("Layer that maps the % of anthropogenic disturbance in a 500m buffer.", 
                                "This layer is static if no modules are forecasting anthropogenic disturbances")),
-    expectsInput(objectName = "modelsToUse", objectClass = "character", 
-                 desc = "Which models from ECCC to be used?", 
-                 sourceURL = NA),
-    expectsInput(objectName = "caribouData", objectClass = "data.table", 
-                 desc = "Data containing recruitment and other pop covariates", 
-                 sourceURL = "https://drive.google.com/open?id=1SOimSD2jehRxV-SbMmgLUh3W5yStwhdq"),
-    expectsInput(objectName = "provinces", objectClass = "character", 
-                 desc = "Which province caribou data should be used for the module?"),
     expectsInput(objectName = "caribouCoefTable", objectClass = "data.table", 
                  desc = "Published caribou coefficients", 
-                 sourceURL = "https://drive.google.com/open?id=14ck35G8A3A6s65vSAWWeUp2_vXgmYZe5")
+                 sourceURL = NA),
+    expectsInput(objectName = "listSACaribou", objectClass = "list", 
+                  desc = paste0("List of caribou areas to summarize predictions for",
+                                "Defaults to shapefile of polygons in the NWT")),
+    expectsInput(objectName = "historicalFires", objectClass = "list", 
+                 desc = "List for fire by year. This layer was built by James Hodson (GNWT)",
+                 sourceURL = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7"),
+    expectsInput(objectName = "flammableMap", objectClass = "RasterLayer", 
+                 desc = paste0("Flammable map to mask historical and current fireLayer ",
+                               "to flammable areas")),
+    expectsInput(objectName = "rstCurrentBurnList", objectClass = "list", 
+                 desc = "List of fires by year (raster format). These layers are produced by simulation",
+                 sourceURL = ""),
+    expectsInput(objectName = "populationGrowthTable", objectClass = "data.table", 
+                 desc = paste0("Table with 6 columns:",
+                               "1. modelVersion: ECCC or Johnson", # only for recruitment
+                               "2. responseVariable: femaleSurvival or recruitment",
+                               "3. Type: National", # To keep consistency if we include Regional models
+                               "4. modelNumber: M1-M12 (not all are available for both ECCC/Johnson)",
+                               "5. Coefficient: name of the coefficient",
+                               "6. Value: value of the coefficient",
+                               "7. StdErr: Standard error of the coefficient",
+                               "rows are different values"),
+                 sourceURL = "https://drive.google.com/file/d/1tl0tcvtWVBYXJ5LXS71VmI6HPK7iSkly/view?usp=sharing")
   ), 
   outputObjects = bind_rows(
-    createsOutput(objectName = "caribouModels", objectClass = "list", 
-                 desc = "List with model equations. Default is M3 (ECCC 2011, Table 56) downloaded if needed."),
     createsOutput(objectName = "predictedCaribou", objectClass = "list", 
-                  desc = "Data.table that contains the total population size per year, as well as other parameters"),
+                  desc = paste0("Data.table that contains the total population size ",
+                                "per year, as well as other parameters")),
     createsOutput(objectName = "currentPop", objectClass = "numeric", 
                   desc = "Caribou population size in the study area. Is updated every time step"),
     createsOutput(objectName = "plotCaribou", objectClass = "ggplot2", 
                   desc = "Caribou population size through time"),
     createsOutput(objectName = "disturbances", objectClass = "list", 
                   desc = paste0("disturbances is a list of shapefiles that have polygons with ", 
-                                "the total disturbance in the area in percentage.",
-                                " If not provided, it is created from sim$rstCurrentBurn", 
-                                " coming from scfmSpread")),
+                                "disturbance in the area in percentage (total ). It is ",
+                                "created using ..... from .....")),
     createsOutput(objectName = "listSACaribou", objectClass = "list", 
                   desc = paste0("List of caribou areas to predict for",
-                                " Currently only takes 3 shapefiles"))
+                                " Currently only takes 3 shapefiles")),
+    createsOutput(objectName = "recruitmentModelDT", objectClass = "list", 
+                  desc = paste0("List of caribou recruitment table to extract coefficients")),
+    createsOutput(objectName = "femaleSurvivalModelDT", objectClass = "list", 
+                  desc = paste0("List of caribou fem survival table to extract coefficients")),
+    createsOutput(objectName = "femaleSurvivalModel", objectClass = "list", 
+                  desc = "List of female survival model equations"),
+    createsOutput(objectName = "recruitmentModel", objectClass = "list", 
+                  desc = "List of recruitment model equations"),
+    createsOutput(objectName = "fireLayerList", objectClass = "list", 
+                  desc = paste0("List of fires for each year, from the ",
+                                "(currentYear-recoveryTime):currentYear",
+                                "This will include historical years when available",
+                                " topped-up with simulated fire going forward in future"))
   )
 ))
 
@@ -106,78 +162,106 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         params(sim)[[currentModule(sim)]]$popModel <- "timestepLambda"
       }
       
-      sim$listSACaribou = list(sim$caribouArea1, sim$caribouArea2, sim$Edehzhie)
-      names(sim$listSACaribou) <- c("caribouArea1", "caribouArea2", "Edehzhie")
       sim$predictedCaribou <- list()
+      sim$fireLayer <- list()
 
       # schedule future event(s)
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "makingModel")
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "gettingData")
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribou")
-      sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot", eventPriority = .last())
-      if (P(sim)$popModel != "annualLambda")
-        sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
+      # sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot", eventPriority = .last())
+      #TODO NOT FULLY IMPLEMENTED. CODE NEEDS REVISION.
+      # if (!P(sim)$popModel %in% c("annualLambda", "timestepLambda"))
+      #   sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
     },
     makingModel = {
-      sim$caribouModels <- createModels(caribouCoefTable = sim$caribouCoefTable, 
-                                        modelsToUse = sim$modelsToUse)
+      # 1. Prepare table based on which models to use
+      message("Building recruitment model tables")
+      # 1.1. recruitmentModelDT: Table with 3 columns: Coefficient, Value, StdErr
+      sim$recruitmentModelDT <- makeDTforPopGrowth(populationGrowthTable = sim$populationGrowthTable, 
+                                                   modelVersion = P(sim)[["recruitmentModelVersion"]],
+                                                   modelNumber = P(sim)[["recruitmentModelNumber"]],
+                                                   responseVariable = "recruitment")
+      message("Building female survival model tables")
+      # 1.2. femaleSurvivalModelDT: Table with 3 columns: Coefficient, Value, StdErr
+      sim$femaleSurvivalModelDT <- makeDTforPopGrowth(populationGrowthTable = sim$populationGrowthTable,
+                                                      modelVersion = P(sim)[["femaleSurvivalModelVersion"]],
+                                                      modelNumber = P(sim)[["femaleSurvivalModelNumber"]],
+                                                      responseVariable = "femaleSurvival")
+      
+      # 2. Lapply over the models types (modelVersion, modelNumber, Type combinations) 
+      # to use and run the buildCoefficientsTable()
+      # list (model types) of lists of 2 objects: 
+      #   a) matrix with SD x nBootstrap (coeffTable) 
+      #   b) averages (coeffValues)
+      #   2.1. recruitmentModel
+      sim$recruitmentModel <- lapply(names(sim$recruitmentModelDT), FUN = function(modelType){
+        message(paste0("Building recruitment models for ", modelType))
+        tb <- buildCoefficientsTable(caribouCoefTable = sim$recruitmentModelDT[[modelType]],
+                                     nBootstrap = P(sim)$nBootstrap)
+                                     })
+      names(sim$recruitmentModel) <- names(sim$recruitmentModelDT)
+      # 2.2. femaleSurvivalModel
+      sim$femaleSurvivalModel <- lapply(names(sim$femaleSurvivalModelDT), FUN = function(modelType){
+        message(paste0("Building female survival models for ", modelType))
+        tb <- buildCoefficientsTable(caribouCoefTable = sim$femaleSurvivalModelDT[[modelType]],
+                                     nBootstrap = P(sim)$nBootstrap)
+      })
+      names(sim$femaleSurvivalModel) <- names(sim$femaleSurvivalModelDT)
     },
     gettingData = {
-      Require("magrittr")
-      mod$cohortData <- createModObject(data = "cohortData", sim = sim, 
-                                        pathInput = inputPath(sim), currentTime = time(sim))
-      mod$pixelGroupMap <- createModObject(data = "pixelGroupMap", sim = sim, 
-                                           pathInput = inputPath(sim), currentTime = time(sim))
-      
-      if (any(is.null(mod$pixelGroupMap), is.null(mod$cohortData))) {
-        params(sim)[[currentModule(sim)]]$.useDummyData <- TRUE
-      }
+      # sim$fireLayerList: a list of years of simulation with one raster composing
+      #                    the most recent fires, namely (currentYear-recoveryTime):currentYear
+      sim$fireLayerList[[paste0("Year", time(sim))]] <- composeFireRaster(historicalFires = sim$historicalFires,
+                                         thisYearsFires = sim$rstCurrentBurnList,
+                                         recoveryTime = P(sim)$recoveryTime,
+                                         currentTime = time(sim),
+                                         pathData = dataPath(sim), # To compare to current time. First time needs 
+                                         # to be different as we are creating layers, not updating them
+                                         rasterToMatch = sim$rasterToMatch)
       
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "gettingData")
-      
+      if (P(sim)$predictLastYear){
+        if (all(time(sim) == start(sim), (end(sim)-start(sim)) != 0))
+          sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "gettingData")
+      }
     },
     growingCaribou = {
       if (P(sim)$.useDummyData == TRUE){
         message(crayon::red(paste0("Disturbance total information (pixelGroupMap & cohortData) was not found.", 
                                    "\nGenerating DUMMY DATA to test the module.")))
-        if (is.null(sim$disturbances)){
-          message(crayon::magenta(paste0("Assigning disturbance for the first time.")))
           sim$disturbances <- list(assign(x = paste0("Year", time(sim)), 
                                           value = data.frame(disturbances = rnorm(n = 1, 
-                                                                                  mean = P(sim)$meanFire, 
-                                                                                  sd = P(sim)$sdFire))))
-        } else {
-          message(crayon::blue(paste0("Assigning disturbance from previous year.")))
-          sim$disturbances[[paste0("Year", time(sim))]] <- sim$disturbances[[paste0("Year", time(sim)-P(sim)$.growthInterval)]]
-        }
+                                                                                  mean = 30.75, 
+                                                                                  sd = 10.6))))
+          names(sim$disturbances) <- paste0("Year", time(sim))
         params(sim)[[currentModule(sim)]]$.useDummyData <- FALSE # this guarantees that next year is gonna be checked for data 
       } else {
         if (is.null(sim$disturbances)){
           sim$disturbances <- list()
         }
         sim$disturbances[[paste0("Year", time(sim))]] <- getLayersCaribou(currentTime = time(sim),
-                                                                   startTime = start(sim),
-                                                                   endTime = end(sim),
-                                                                   cohortData = mod$cohortData, # Has age info per pixel group
-                                                                   pixelGroupMap = mod$pixelGroupMap,
                                                                    recoveryTime = P(sim)$recoveryTime,
                                                                    listSACaribou = sim$listSACaribou,
-                                                                   anthropogenicLayer = sim$anthropogenicLayer,
+                                                                   bufferedAnthropogenicDisturbance500m = sim$bufferedAnthropogenicDisturbance500m,
+                                                                   useFuture = P(sim)$useFuture,
+                                                                   fireLayer = sim$fireLayerList[[paste0("Year", time(sim))]],
                                                                    waterRaster = sim$waterRaster,
-                                                                   isRSF = FALSE,
                                                                    rasterToMatch = sim$rasterToMatch,
                                                                    destinationPath = dataPath(sim))
       }
       if (!all(is.na(sim$disturbances[[paste0("Year", time(sim))]])))
-        sim$predictedCaribou[[paste0("Year", time(sim))]] <- popGrowthModel(caribouModels = sim$caribouModels,
-                                             disturbances = sim$disturbances,
-                                             currentPop = sim$currentPop,
-                                             currentTime = time(sim),
-                                             startTime = start(sim),
-                                             adultFemaleSurv = sim$adultFemaleSurv,
-                                             popModel = P(sim)$popModel,
-                                             listSACaribou = sim$listSACaribou)
+        sim$predictedCaribou[[paste0("Year", time(sim))]] <- populationGrowthModel(
+                                                      femaleSurvivalModel = sim$femaleSurvivalModel,
+                                                      recruitmentModel = sim$recruitmentModel,
+                                                      disturbances = sim$disturbances[[paste0("Year", time(sim))]],
+                                                      currentTime = time(sim),
+                                                      growthInterval = P(sim)$.growthInterval,
+                                                      popModel = P(sim)$popModel)
+      message(paste0("Caribou growth information for ", time(sim)))
+      print(sim$predictedCaribou[[paste0("Year", time(sim))]])
+      
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "growingCaribou")
       if (P(sim)$predictLastYear){
@@ -186,17 +270,18 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       }
     },
     updatingPopulationSize = {
-      
-      sim$currentPop <- lapply(X = names(sim$caribouModels), FUN = function(model){
-        sim$predictedCaribou[[paste0("Year", time(sim))]][[model]]$currentPopUpdated
-      })
-      names(sim$currentPop) <- names(sim$caribouModels)
-
-      # schedule future event(s)
-      sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "updatingPopulationSize")
+      #TODO NOT FULLY IMPLEMENTED. CODE NEEDS REVISION.
+      # sim$currentPop <- lapply(X = names(sim$caribouModels), FUN = function(model){
+      #   sim$predictedCaribou[[paste0("Year", time(sim))]][[model]]$currentPopUpdated
+      # })
+      # names(sim$currentPop) <- names(sim$caribouModels)
+      # 
+      # # schedule future event(s)
+      # sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "updatingPopulationSize")
       
     },
     plot = {
+      browser() # Plotting still needs to be worked on!
         sim$plotCaribou <- plotCaribou(startTime = start(sim),
                                        currentTime = time(sim),
                                        endTime = end(sim),
@@ -220,25 +305,14 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
   
   cloudFolderID <- "https://drive.google.com/open?id=1PoEkOkg_ixnAdDqqTQcun77nUvkEHDc0"
-  
-  # if (!suppliedElsewhere("caribouData", sim)){ # Think I am not using this...
-  #   sim$caribouData <- Cache(prepInputs, targetFile = "CaribouPopData_2008.csv",
-  #                                 url = extractURL(objectName = "caribouData", module = "caribouRecDistRelationship"),
-                                  # destinationPath = dataPath(sim), fun = "data.table::fread",
-  #                            omitArgs = "destinationPath")
-  # }
-  if (!suppliedElsewhere("provinces", sim)){
-    sim$provinces <- "NWT"
-  }
-  if (!suppliedElsewhere("caribouCoefTable", sim)){
-    sim$caribouCoefTable <- prepInputs(targetFile = "caribouCoefTable.csv", url = extractURL("caribouCoefTable"),
-                                       destinationPath = dataPath(sim), fun = "data.table::fread", 
-                                       omitArgs = "destinationPath", overwrite = TRUE)
-  }
-  if (!suppliedElsewhere("modelsToUse", sim)){
-    sim$modelsToUse <- "M3"
-    message(paste0("No models were specified. Running simulation using model ", crayon::magenta("M3"), 
-                   " from ECCC 2011 report (Table 56)"))
+
+  if (!suppliedElsewhere("populationGrowthTable", sim)){
+    sim$populationGrowthTable <- prepInputs(targetFile = "populationGrowthTable.csv", 
+                                       url = extractURL("populationGrowthTable"),
+                                       destinationPath = dataPath(sim), 
+                                       fun = "data.table::fread", 
+                                       omitArgs = "destinationPath", 
+                                       overwrite = TRUE)
   }
     
   if (!suppliedElsewhere(object = "studyArea", sim = sim)){
@@ -255,25 +329,20 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                     overwrite = TRUE, filename2 = NULL,
                                     omitArgs = c("destinationPath", "overwrite", "filename2"))
   }
-  if (!suppliedElsewhere(object = "caribouArea2", sim = sim)){
-    sim$caribouArea2 <- Cache(prepInputs, url = extractURL("caribouArea2"),
+  if (!suppliedElsewhere(object = "listSACaribou", sim = sim)){
+    
+    caribouArea1 <- Cache(prepInputs, url = "https://drive.google.com/open?id=1Vqny_ZMoksAjji4upnr3OiJl2laGeBGV",
                                    targetFile = "NT1_BOCA_spatial_units_for_landscape_projections.shp",
-                                   destinationPath = dataPath(sim), filename2 = "caribouArea2")
-  }
-  if (!suppliedElsewhere("caribouArea1", sim)){
-    sim$caribouArea1 <- Cache(prepInputs, url = extractURL("caribouArea1"),
-                                   targetFile = "NWT_Regions_2015_LCs_DC_SS_combined_NT1_clip_inc_Yukon.shp",
-                                   destinationPath = dataPath(sim), filename2 = "caribouArea1")
-  }
+                                   destinationPath = dataPath(sim), 
+                          filename2 = "caribouBOCAunits")
   
-  if (!suppliedElsewhere("Edehzhie", sim)){
-    sim$Edehzhie <- Cache(prepInputs, targetFile = "Edehzhie.shp",
-                               archive = "Edehzhie.zip",
-                               alsoExtract = "similar",
-                                   url = extractURL("Edehzhie"), studyArea = sim$studyArea,
-                                   destinationPath = dataPath(sim), filename2 = NULL,
-                                   rasterToMatch = sim$rasterToMatch)
-    sim$Edehzhie$Name <- sim$Edehzhie$NAME_1
+    caribouArea2 <- Cache(prepInputs, url = "https://drive.google.com/open?id=1Qbt2pOvC8lGg25zhfMWcc3p6q3fZtBtO",
+                                   targetFile = "NWT_Regions_2015_LCs_DC_SS_combined_NT1_clip_inc_Yukon.shp",
+                                   destinationPath = dataPath(sim), 
+                          filename2 = "caribouNT1herds")
+    
+    sim$listSACaribou = list(caribouArea1, caribouArea2)
+    names(sim$listSACaribou) <- c("BOCAunits", "NT1herds")
   }
 
   if (!suppliedElsewhere("currentPop", sim) &
@@ -283,34 +352,58 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     sim$currentPop <- 353 # [ FIX ] should pass a file that is a list of population sizes for each one of the units/LPU for each studyArea shp 
       
   }
-  if (!suppliedElsewhere("adultFemaleSurv", sim)){
-    message(crayon::yellow(paste0("No LPU specific values for the female survival is available for NWT.", 
-                               "\nUsing national ECCC value of 0.85.")))
-    sim$adultFemaleSurv <- 0.85
-  }
-  
+
   if (!suppliedElsewhere("waterRaster", sim)){
-  wetlandRaster <- Cache(prepInputsLayers_DUCKS, destinationPath = dataPath(sim), 
-                               studyArea = sim$studyArea, 
-                               userTags = "objectName:wetlandRaster")
   sim$waterRaster <- Cache(classifyWetlands, LCC = P(sim)$baseLayer,
                              wetLayerInput = wetlandRaster,
                              pathData = dataPath(sim),
                              studyArea = sim$studyArea,
-                             userTags = c("objectName:wetLCC"))
-  waterVals <- raster::getValues(sim$waterRaster) # Uplands = 3, Water = 1, Wetlands = 2, so 2 and 3 to NA
-  waterVals[!is.na(waterVals) & waterVals != 1] <- 0
-  sim$waterRaster <- raster::setValues(sim$waterRaster, waterVals)
+                           rasterToMatch = sim$rasterToMatch,
+                             userTags = c("objectName:waterLCC"))
+  # If LCC2005, water = 37
+  # If LCC2010, water = 18
+  waterValLCC <- ifelse(P(sim)$baseLayer == 2005, 37, 18)
+  sim$waterRaster[!is.na(sim$waterRaster[]) & 
+                    sim$waterRaster[] != waterValLCC] <- 0
   }
 
-  if (!suppliedElsewhere("anthropogenicLayer", sim)){
-  sim$anthropogenicLayer <- prepInputs(targetFile = "bufferMap_v0.1.0_m_r500_t0_anthrDisturb.grd",
-                                       archive = "bufferMap_v0.1.0_m_r500_t0_anthrDisturb.zip",
-                                       alsoExtract = "similar",
-                                       url = "https://drive.google.com/open?id=1GhnIjmKsZ3JoxTjefeeBUb02iiEcV_qD",
-                                       destinationPath = dataPath(sim), studyArea = sim$studyArea,
-                                       overwrite = TRUE, 
-                                       rasterToMatch = sim$rasterToMatch)
+  if (!suppliedElsewhere("bufferedAnthropogenicDisturbance500m", sim)){
+    bufferedAnthropogenicDisturbance500m <- Cache(prepInputs, targetFile = "buffered500mDisturbancesUnified_NT1_BCR6.shp",
+                                                  archive = "buffered500mDisturbancesUnified_NT1_BCR6.zip",
+                                                  alsoExtract = "similar",
+                                                  url = "https://drive.google.com/file/d/1yz39dGW4XMJk5ox6TuVUOMrU4q3mhfhU/view?usp=sharing",
+                                                  destinationPath = Paths$inputPath, 
+                                                  studyArea = studyArea,
+                                                  rasterToMatch = rasterToMatch,
+                                                  userTags = c(stepCacheTag,
+                                                               "step:prepAnthropogenicDistLayer", "outFun:Cache"))
+    bufferedAnthropogenicDisturbance500mSF <- sf::st_as_sf(bufferedAnthropogenicDisturbance500m)
+    bufferedAnthropogenicDisturbance500mSF$fieldSF <- 1
+    bufferedAnthropogenicDisturbance500m <- fasterize::fasterize(sf = bufferedAnthropogenicDisturbance500mSF,
+                                                                 raster = rasterToMatch, field = "fieldSF", 
+                                                                 background = 0)
+    buffAnthroDist500m <- Cache(postProcess, x = bufferedAnthropogenicDisturbance500m,
+                                destinationPath = Paths$inputPath, 
+                                studyArea = studyArea,
+                                rasterToMatch = rasterToMatch,
+                                userTags = c(stepCacheTag,
+                                             "step:maskAnthropogenicDistLayer", "outFun:Cache"))
+    sim$bufferedAnthropogenicDisturbance500m <- buffAnthroDist500m
+  }
+  if (!suppliedElsewhere("historicalFires", sim)){
+    fireYears <- 1991:2017
+    sim$historicalFires <- Cache(fireSenseUtils::getFirePolygons, 
+                                 years = fireYears,
+                                 studyArea = aggregate(sim$studyArea),
+                                 pathInputs = Paths$inputPath, 
+                                 userTags = paste0("years:", range(fireYears)))
+  }
+  if (!suppliedElsewhere("rstCurrentBurnList", sim)){
+    warning("rstCurrentBurnList needs to be provided and was not found in the simList. 
+             Trying to find it in inputPath", immediate. = TRUE)
+    sim$rstCurrentBurnList <- readRDS(file.path(Paths$inputPath, 
+                                                "rstCurrentBurnList_year2100.rds"))
+    message(crayon::green("rstCurrentBurnList loaded successfully!"))
   }
 
   return(invisible(sim))
