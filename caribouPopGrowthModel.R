@@ -75,7 +75,7 @@ defineModule(sim, list(
                     desc = paste0("Which recruitment model should be used for the simulations?",
                                   "Models available are M3, M7 and M8 (ECCC); M1:M5 (Johnson)"))
   ),
-  inputObjects = bind_rows(
+  inputObjects = bindrows(
     expectsInput(objectName = "waterRaster", objectClass = "RasterLayer",
                  desc = "Wetland raster for excluding water from anthropogenic layer",
                  sourceURL = NA),
@@ -117,7 +117,7 @@ defineModule(sim, list(
                                "rows are different values"),
                  sourceURL = "https://drive.google.com/file/d/1tl0tcvtWVBYXJ5LXS71VmI6HPK7iSkly/view?usp=sharing")
   ), 
-  outputObjects = bind_rows(
+  outputObjects = bindrows(
     createsOutput(objectName = "predictedCaribou", objectClass = "list", 
                   desc = paste0("Data.table that contains the total population size ",
                                 "per year, as well as other parameters")),
