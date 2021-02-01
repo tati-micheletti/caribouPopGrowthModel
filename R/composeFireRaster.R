@@ -90,7 +90,7 @@ composeFireRaster <- function(currentTime,
                                                 subThisYears), fun = max, 
                                   na.rm = TRUE)
   }
-  # Mask counter Raster to flammable map to avoid overestimating caribou later on
+  # Mask counter Raster to RTM map to avoid overestimating caribou later on
   counterRasterMasked <- maskInputs(counterRaster, 
                                destinationPath = pathData,
                                rasterToMatch = rasterToMatch,

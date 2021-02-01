@@ -72,19 +72,22 @@ extractDisturbanceFast <- function(shapefileName,
   # Check for anthropogenic layer and make sure it aligns with the others
   if (!is.null(bufferedAnthropogenicDisturbance500m)){
     # Convert NA background of lineDensity/anthropogenic disturbance to 0, while water stays as NA
-    backgroundWithoutWater <- rasterToMatch
-    backgroundWithoutWater[waterRaster[] == 1] <- NA
-    backgroundWithoutWater[!is.na(backgroundWithoutWater)] <- 0
+
+#### NOTE:  ON 26JAN21 CHERYL JOHNSON CONFIRMED THEY DO NOT REMOVE ANYTHING FROM THE LAYERS,
+#### SO WE SHOULD NOT MASK EITHER
+    # backgroundWithoutWater <- rasterToMatch
+    # backgroundWithoutWater[waterRaster[] == 1] <- NA 
+    # backgroundWithoutWater[!is.na(backgroundWithoutWater)] <- 0
     
     # Fix anthropogenic layer that is NA/1 only. Add zeros to all pixels that are water, 
     # basically (which is where we can't build anything)
-    backgroundWithoutWater[bufferedAnthropogenicDisturbance500m[] == 1] <- 1
-    bufferedAnthropogenicDisturbance500m <- backgroundWithoutWater
+    # backgroundWithoutWater[bufferedAnthropogenicDisturbance500m[] == 1] <- 1
+    # bufferedAnthropogenicDisturbance500m <- backgroundWithoutWater
+    bufferedAnthropogenicDisturbance500m[is.na(rasterToMatch[])] <- NA # REMOVING ONLY OUTSIDE SA
   } else {
     message(crayon::red("bufferedAnthropogenicDisturbance500m is NULL. 
                         The prediction will assume anthropogenic disturbances do not exist"))
-    bufferedAnthropogenicDisturbance500m <- rasterToMatch
-    bufferedAnthropogenicDisturbance500m[bufferedAnthropogenicDisturbance500m[] == 1] <- 0
+    bufferedAnthropogenicDisturbance500m[rasterToMatch[] == 1] <- 0
   }
   
   # Extract the caribou shapefile values by fasterizing it. Way faster than raster::extract
