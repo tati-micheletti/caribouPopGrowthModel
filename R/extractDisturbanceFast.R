@@ -99,7 +99,24 @@ extractDisturbanceFast <- function(shapefileName,
                                          "objectName:caribouShapefile",
                                          "outFun:Cache"))
   caribouShapefileSF <- sf::st_as_sf(caribouShapefile)
-  nm <- if (!is.null(caribouShapefile$NAME)) "NAME" else "Name"
+  nm <- if (!is.null(caribouShapefile$NAME)){
+    "NAME"
+  } else {
+    if (!is.null(caribouShapefile$Name)) {
+      "Name"
+    } else {
+      if (!is.null(caribouShapefile$HERD)){
+        "HERD"
+      } else {
+NULL
+    }
+  }
+  }
+  if (is.null(nm))
+    stop(paste0("The shapefile ", shapefileName, " does not have a field named ",
+                "'NAME' or 'Name'. Please provide add that to it and run the ",
+                "simulation again"))
+
   caribouShapefileSF$ID <- as.numeric(seq(1:length(caribouShapefileSF[[nm]])))
   caribouShapefileRas <- fasterize::fasterize(sf = caribouShapefileSF,
                                               raster = rasterToMatch,

@@ -13,18 +13,20 @@
   
   templateRaster <- bufferedAnthropogenicDisturbance500m
   templateRaster[!is.na(templateRaster[])] <- 0
-  
+
   # Data sanity check: do I have burns where it is not possible (i.e. water)?
   if (makeAssertions) {
     templateRasterWrongFires <- templateRaster
     templateRasterWrongFires[fireLayer[] > 0 & is.na(templateRaster[])] <- 1
     tb <- table(templateRasterWrongFires[])
-    percWrongFires <- 100*(tb["1"]/(tb["1"]+tb["0"]))
-    if (percWrongFires > 3){
-      warning(paste0("Wrong fire percentage (i.e. fires in",
-                     " water pixels) is higher than 3% (", percWrongFires,
-                     ") for ", polygonName,". Make sure fire data is correct"),
-              immediate. = TRUE)
+    if (!is.na(tb["1"])){
+      percWrongFires <- 100*(tb["1"]/(tb["1"]+tb["0"]))
+      if (percWrongFires > 3){
+        warning(paste0("Wrong fire percentage (i.e. fires in",
+                       " water pixels) is higher than 3% (", percWrongFires,
+                       ") for ", polygonName,". Make sure fire data is correct"),
+                immediate. = TRUE)
+      }
     }
   }
   fireLayer[is.na(templateRaster)] <- NA

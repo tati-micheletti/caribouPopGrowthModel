@@ -215,6 +215,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       #                    the most recent fires, namely (currentYear-recoveryTime):currentYear
       sim$fireLayerList[[paste0("Year", time(sim))]] <- composeFireRaster(historicalFires = sim$historicalFires,
                                          thisYearsFires = sim$rstCurrentBurnList,
+                                         studyArea = sim$studyArea,
                                          recoveryTime = P(sim)$recoveryTime,
                                          currentTime = time(sim),
                                          pathData = dataPath(sim), # To compare to current time. First time needs 

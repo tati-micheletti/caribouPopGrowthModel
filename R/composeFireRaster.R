@@ -2,6 +2,7 @@ composeFireRaster <- function(currentTime,
                               pathData, # To compare to current time. First time needs 
                               # to be different as we are creating layers, not updating them
                               historicalFires,
+                              studyArea,
                               rasterToMatch,
                               recoveryTime,
                               thisYearsFires){
@@ -92,6 +93,7 @@ composeFireRaster <- function(currentTime,
   }
   # Mask counter Raster to RTM map to avoid overestimating caribou later on
   counterRasterMasked <- maskInputs(counterRaster, 
+                                    studyArea = studyArea,
                                destinationPath = pathData,
                                rasterToMatch = rasterToMatch,
                               maskWithRTM = TRUE)

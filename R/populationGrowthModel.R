@@ -64,6 +64,9 @@ populationGrowthModel <-  function(femaleSurvivalModel,
     recrmax <- recr + CI(recruitmentPredictions[modelType == recrMod, "stdErr"])
     ts <- growthInterval
     
+    testthat::expect_true(NROW(SadF) == NROW(recr))
+    
+    
     growth <- do.call(what = popModel, args = alist(SadF = SadF,
                                         recr = recr,
                                         ts = ts))
@@ -75,12 +78,21 @@ populationGrowthModel <-  function(femaleSurvivalModel,
                                                       ts = ts))
     
     # Melt DT to put recruitment and femaleSurvival results in the same table 
-    DT <- rbind(recruitmentPredictions[index],
-                    femaleSurvivalPredictions[index])
-    DT[, c("growth", "growthMin", "growthMax") := list(as.numeric(growth), 
-                                                       as.numeric(growthMin), 
-                                                       as.numeric(growthMax))]
-    return(DT)
+    DTbind <- rbind(recruitmentPredictions[modelType == recrMod,],
+                    femaleSurvivalPredictions[modelType == femSurvMod,])
+    DTbind <- dcast(DTbind, polygon + area ~ model, value.var = c("average", "stdErr"))
+    names(growth) <- "growth"
+    names(growthMax) <- "growthMax"
+    names(growthMin) <- "growthMin"
+    DTbind <- do.call(cbind, args = list(DTbind, growth, growthMin, growthMax))
+    DTbind[, femSurvMod_recrMod := paste(femSurvMod, recrMod, sep = "::")]
+    return(DTbind)
   }))
+  
+  # Adding to annualLambda
+  DT[, c("annualLambda", "annualLambdaMin", "annualLambdaMax") := list(growth^(1/growthInterval), 
+                                                                       growthMin^(1/growthInterval), 
+                                                                       growthMax^(1/growthInterval))]
+  
   return(DT)
 }
