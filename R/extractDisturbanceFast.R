@@ -121,7 +121,12 @@ NULL
   caribouShapefileRas <- fasterize::fasterize(sf = caribouShapefileSF,
                                               raster = rasterToMatch,
                                               field = "ID")
-  
+
+  # Remove the ID's that are not in the rasterized version of the sA (because they are too small)
+  availableInRas <- na.omit(unique(caribouShapefileRas[]))
+  polsToRemove <- setdiff(caribouShapefileSF[["ID"]], availableInRas)
+  caribouShapefileSF <- caribouShapefileSF[!caribouShapefileSF$ID %in% polsToRemove,]
+
   ########### START EXTRACTION OF DATA ##################### 
 
   listExtr <- do.call(what = funToLapply, args = alist(X = caribouShapefileSF[["ID"]],
@@ -134,6 +139,6 @@ NULL
                                                        nm = nm
                                                        ))
   #Naming both fire and anthro disturbances
-  names(listExtr) <- caribouShapefile[[nm]]
+  names(listExtr) <- caribouShapefileSF[[nm]]
   return(listExtr)
 }

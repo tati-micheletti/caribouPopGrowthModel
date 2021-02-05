@@ -10,7 +10,6 @@
   # 1. Make sure the layers are all masked for the study area to avoid problems
   # with NA's. The anthropogenic layer has been treated to remove water. We will
   # use it as template for the fire layer
-  
   templateRaster <- bufferedAnthropogenicDisturbance500m
   templateRaster[!is.na(templateRaster[])] <- 0
 
@@ -39,6 +38,7 @@
   # From the anthropo layer we calculate for each polygon the total amount of pixels that had disturbances
   # over the total number of pixels "available" to have it (non-NA when na is JUST WATER).
   # Then multiply by 100 to work with %.
+
   percentAnthopo <- calculatePixelsInaRule(ras = bufferedAnthropogenicDisturbance500m,
                                            rule = "> 0", # Need to be a character string of the rule
                                            pol = pol,
@@ -130,13 +130,16 @@ Value is negative. Please debug.")
   # burned when it is actually development)
   fireOnTotal <- 100*(percentFire$percentDisturbance/Total_dist)
   
-  testthat::expect_true(fire_prop_dist <= fireOnTotal)
+  # This happens if you don't have any disturbance
+  if (!any(is.na(fire_prop_dist), is.na(fireOnTotal)))
+    testthat::expect_true(fire_prop_dist <= fireOnTotal)
   
   # Making the data.frame
   df <- data.frame(Fire = percentFire$percentDisturbance,
                    Anthro = percentAnthopo$percentDisturbance,
                    Total_dist = Total_dist,
                    fire_excl_anthro = fire_excl_anthro,
-                   fire_prop_dist = fire_prop_dist)
+                   fire_prop_dist = fire_prop_dist,
+                   polygonSizeInPix = percentAnthopo$totPixelsNotNA)
   return(df)
 }
