@@ -30,19 +30,24 @@ plotCaribouPopGrowth <- function(startTime,
                                pattern = paste0("predictedCaribou_year", currentTime), 
                                full.names = TRUE, recursive = TRUE))
       addedTB <- lapply(tb, function(TB){
-        TB[, Replicate := paste0("run", 1:5)[filePath]]
+        TB[, Replicate := reps[filePath]]
         return(TB)
       })
       return(addedTB)
     })
-    names(predictedCaribou) <- paste0("run", 1:5)
+    names(predictedCaribou) <- reps
     
     predictedCaribouOrganized <- lapply(X = 1:unique(lengths(predictedCaribou)), 
                                         FUN = function(index){
                                           sbset <- rbindlist(lapply(predictedCaribou, `[[`, index))
                                           return(sbset)
                                         })
-    names(predictedCaribouOrganized) <- paste0("Year", c(seq(startTime, currentTime, by = 10), currentTime))
+    namesCaribou <- if (!currentTime %in% seq(startTime, currentTime, by = 10)){
+      paste0("Year", c(seq(startTime, currentTime, by = 10), currentTime))
+    } else {
+      paste0("Year", c(seq(startTime, currentTime, by = 10)))
+    }
+    names(predictedCaribouOrganized) <- namesCaribou
     predictedCaribou <- predictedCaribouOrganized
   }
 
