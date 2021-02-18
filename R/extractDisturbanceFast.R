@@ -91,6 +91,7 @@ extractDisturbanceFast <- function(shapefileName,
   }
   
   # Extract the caribou shapefile values by fasterizing it. Way faster than raster::extract
+  message(crayon::blue("Fasterizing caribou shapefile..."))
   caribouShapefile <- Cache(reproducible::postProcess, x = caribouShapefile,
                             rasterToMatch = rasterToMatch,
                             destinationPath = destinationPath,
@@ -114,7 +115,7 @@ NULL
   }
   if (is.null(nm))
     stop(paste0("The shapefile ", shapefileName, " does not have a field named ",
-                "'NAME' or 'Name'. Please provide add that to it and run the ",
+                "'NAME' or 'Name'. Please add that to it and run the ",
                 "simulation again"))
 
   caribouShapefileSF$ID <- as.numeric(seq(1:length(caribouShapefileSF[[nm]])))
