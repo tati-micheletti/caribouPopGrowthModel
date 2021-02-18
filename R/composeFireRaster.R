@@ -70,6 +70,7 @@ composeFireRaster <- function(currentTime,
     counterRaster <- raster::raster(firesFilenameRas)
     counterRaster[] <- counterRaster[]
   }
+
   # 1. Determine which years are in "thisYearsFires"
   maxYearFromData <- maxValue(counterRaster)
   # If the max of the counter is not the current year, we need data from simulations
@@ -81,11 +82,6 @@ composeFireRaster <- function(currentTime,
       names(y) <- paste0("Year", Y)
       return(y)
     }))
-    if (maxYearFromData < minYear){
-      # If the max year from data is smaller than the min year we are suppose
-      # to calculate, make it zero as we will only have simulated fires
-      counterRaster[!is.na(counterRaster[])] <- 0
-    }
     # Add the new years
     counterRaster <- raster::calc(raster::stack(counterRaster, 
                                                 subThisYears), fun = max, 
