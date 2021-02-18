@@ -76,7 +76,7 @@
   
   # Data sanity check
   # The number of NA's in fire needs to be the same or smaller than anthropo layers
-  testthat::expect_true(percentFire[["totPixelsNotNA"]] <= percentAnthopo[["totPixelsNotNA"]])
+  testthat::expect_true(round(percentFire[["totPixelsNotNA"]], 5) <= round(percentAnthopo[["totPixelsNotNA"]], 5))
   totPixelsNotNADist <- percentFire[["totPixelsNotNA"]] # Total number of pixels that
   
   # ::: 3. fire_excl_anthro: Fire - Anthro
@@ -89,7 +89,7 @@
                              totPixelsNotNADist)
   # Data sanity check
   if (makeAssertions)
-    testthat::expect_true(fire_excl_anthro <= percentFire$percentDisturbance)
+    testthat::expect_true(round(fire_excl_anthro, 5) <= round(percentFire$percentDisturbance, 5))
   
   # ::: 4. Total_dist: Fire + Anthro, % of total disturbance (non-overlapping buffered
   #                    anthro. + unbuffered ≤ 40 year old fires as a single
@@ -109,8 +109,8 @@ Value is negative. Please debug.")
       browser()
     }
     
-    testthat::expect_true(Total_dist <= (percentFire$percentDisturbance + 
-                                           percentAnthopo$percentDisturbance + 0.01))
+    testthat::expect_true(round(Total_dist, 5) <= round(percentFire$percentDisturbance + 
+                                           percentAnthopo$percentDisturbance + 0.01, 5))
     # Added a 0.01 because in some cases, when there is vritually no overlap  
     # between the two disturbances, because fire is the one driving the number of non-NA's
     # (i.e. so we don't underestimate burned area ==> overestimate caribou!) and this might be
@@ -129,10 +129,9 @@ Value is negative. Please debug.")
   # The alternative way would likely overestimate caribou (as it would say more are is
   # burned when it is actually development)
   fireOnTotal <- 100*(percentFire$percentDisturbance/Total_dist)
-  
   # This happens if you don't have any disturbance
   if (!any(is.na(fire_prop_dist), is.na(fireOnTotal)))
-    testthat::expect_true(fire_prop_dist <= fireOnTotal)
+    testthat::expect_true(round(fire_prop_dist, 5) <= round(fireOnTotal, 5))
   
   # Making the data.frame
   df <- data.frame(Fire = percentFire$percentDisturbance,
