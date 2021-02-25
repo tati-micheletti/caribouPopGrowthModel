@@ -355,17 +355,20 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   }
 
   if (!suppliedElsewhere("waterRaster", sim)){
-  sim$waterRaster <- Cache(classifyWetlands, LCC = P(sim)$baseLayer,
-                             wetLayerInput = wetlandRaster,
-                             pathData = dataPath(sim),
-                             studyArea = sim$studyArea,
-                           rasterToMatch = sim$rasterToMatch,
-                             userTags = c("objectName:waterLCC"))
+  sim$waterRaster <- LandR::prepInputsLCC(year = P(sim)$baseLayer,
+                                                 destinationPath = Paths[["inputPath"]], 
+                                                 studyArea = sim$studyArea, 
+                                                 rasterToMatch = sim$rasterToMatch)
   # If LCC2005, water = 37
   # If LCC2010, water = 18
   waterValLCC <- ifelse(P(sim)$baseLayer == 2005, 37, 18)
   sim$waterRaster[!is.na(sim$waterRaster[]) & 
-                    sim$waterRaster[] != waterValLCC] <- 0
+                    sim$waterRaster[] != waterValLCC] <- NA
+  sim$waterRaster[!is.na(sim$waterRaster[])] <- 1
+  # Remove annoying colortable
+  wV <- getValues(sim$waterRaster)
+  sim$waterRaster <- setValues(x = raster(sim$waterRaster), 
+                               values = wV)
   }
 
   if (!suppliedElsewhere("bufferedAnthropogenicDisturbance500m", sim)){
