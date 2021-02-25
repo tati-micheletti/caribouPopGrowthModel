@@ -38,7 +38,11 @@ vignettes/*.pdf
 rsconnect/
 .Rproj.user
 
+./inputs/
+inputs/
 data/*.*
 outputs/
 ./outputs/
 outputs/*.*
+./cache/
+cache/
