@@ -15,6 +15,7 @@ knitr::opts_chunk$set(cache = FALSE, echo = TRUE, eval = FALSE)
 
 ```{r module_usage}
 # Load SpaDES
+# Load SpaDES
 library("SpaDES")
 library("raster")
 
@@ -23,33 +24,27 @@ invisible(sapply(X = list.files(file.path(getwd(), "R"), full.names = TRUE), FUN
 
 # Set a storage project folder
 workDirectory <- getwd()
+message(paste0("Your working directory is ", workDirectory))
 message(paste0("Your current temporary directory is ", tempdir()))
 
-setPaths(modulePath = dirname(getwd()), 
-         inputPath = file.path("/mnt/data/Micheletti/NWT/outputs/10JUL19/"), 
-         outputPath = file.path("/mnt/data/Micheletti/NWT/outputs/10JUL19/PopGrowth/"), 
-         cachePath = file.path("/mnt/data/Micheletti/NWT/cache/"))
+setPaths(modulePath = dirname(workDirectory),
+         inputPath = file.path(workDirectory, "inputs"), 
+         outputPath = file.path(workDirectory, "outputs"), 
+         cachePath = file.path(workDirectory, "cache"))
 getPaths() # shows where the 4 relevant paths are
 
+times <- list(start = 2011, end = 2021)
 
-times <- list(start = 2001, end = 2100)
 
-parameters <- list(
-  caribouPopGrowthModel = list(
-    ".plotInitialTime" = NULL,
-    "recoveryTime" = 40,
-    ".useDummyData" = FALSE,
-    ".growthInterval" = 5)
-)
-modules <- list("caribouPopGrowthModel")
-objects <- list()
-inputs <- list()
-outputs <- list()
+rstCurrentBurnList <- 
+historicalFires <-
 
 if (quickPlot::isRstudioServer()) options(httr_oob_default = TRUE)
 
-caribous <- simInitAndSpades(times = times, params = parameters, modules = modules,
-                 objects = objects)
+caribous <- simInitAndSpades(times = times, 
+                             params = list(), 
+                             modules = list("caribouPopGrowthModel"),
+                             objects = list())
 
 ```
 
@@ -124,7 +119,7 @@ In the last year of the simulation, the module plots lambda through time
 
 # Links to other modules
 
-This module needs to be linked to a vegetation and disturbance modules that generate pixelGroupMap maps and cohortData tables. Otherwise, there is the need for a translation module from disturtance map outputs.
+This module needs to be linked to a vegetation and disturbance modules that generate pixelGroupMap maps and cohortData tables. Otherwise, there is the need for a translation module from disturbance map outputs.
 
 # Link to the the SpaDES module's R script
 

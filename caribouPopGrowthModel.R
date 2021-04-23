@@ -104,7 +104,9 @@ defineModule(sim, list(
                  desc = paste0("Flammable map to mask historical and current fireLayer ",
                                "to flammable areas")),
     expectsInput(objectName = "rstCurrentBurnList", objectClass = "list", 
-                 desc = "List of fires by year (raster format). These layers are produced by simulation",
+                 desc = paste0("List of fires by year (raster format). These ",
+                               "layers are produced by simulation.",
+                               "Defaults to dummy data."),
                  sourceURL = ""),
     expectsInput(objectName = "populationGrowthTable", objectClass = "data.table", 
                  desc = paste0("Table with 6 columns:",
@@ -300,12 +302,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   
   # THis is already set in metadata
   # params(sim)[[currentModule(sim)]]$.useDummyData <- FALSE
-  
-  cloudFolderID <- "https://drive.google.com/open?id=1PoEkOkg_ixnAdDqqTQcun77nUvkEHDc0"
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
-  
-  cloudFolderID <- "https://drive.google.com/open?id=1PoEkOkg_ixnAdDqqTQcun77nUvkEHDc0"
 
   if (!suppliedElsewhere("populationGrowthTable", sim)){
     sim$populationGrowthTable <- prepInputs(targetFile = "populationGrowthTable.csv", 
@@ -348,10 +346,10 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
 
   if (!suppliedElsewhere("currentPop", sim) &
       P(sim)$popModel != "annualLambda"){
-    message(crayon::yellow(paste0("Initial population size not provided.", 
-                               "\nGenerating a mean population size for the studyArea of Edehzhie (n = 353).")))
-    sim$currentPop <- 353 # [ FIX ] should pass a file that is a list of population sizes for each one of the units/LPU for each studyArea shp 
-      
+    # Currently not used!
+    # message(crayon::yellow(paste0("Initial population size not provided.", 
+    #                            "\nGenerating a mean population size for the studyArea of Edehzhie (n = 353).")))
+    # sim$currentPop <- 353 # [ FIX ] should pass a file that is a list of population sizes for each one of the units/LPU for each studyArea shp 
   }
 
   if (!suppliedElsewhere("waterRaster", sim)){
@@ -405,8 +403,19 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   if (!suppliedElsewhere("rstCurrentBurnList", sim)){
     warning("rstCurrentBurnList needs to be provided and was not found in the simList. 
              Trying to find it in inputPath", immediate. = TRUE)
-    sim$rstCurrentBurnList <- readRDS(file.path(Paths$inputPath, 
-                                                "rstCurrentBurnList_year2100.rds"))
+    sim$rstCurrentBurnList <- tryCatch(
+      readRDS(file.path(Paths$inputPath, "rstCurrentBurnList_year2100.rds")
+      ),
+      error = function(e) {
+        warning("rstCurrentBurnList was not found. Generating DUMMY fire data.",
+                immediate. = TRUE)
+        rstCurrentBurnList <- Cache(prepInputs, url = "",
+                                    destinationPath = Paths[["inputPath"]],
+                                    studyArea = sim$studyArea,
+                                    rasterToMatch = sim$rasterToMatch,
+                                    userTags = c("module:caribouPopGrowthModule",
+                                                 "event:.inputObjects"))
+      })
     message(crayon::green("rstCurrentBurnList loaded successfully!"))
   }
 
