@@ -4,7 +4,6 @@
                                        fireLayer,
                                        caribouShapefileRas,
                                        nm){
-
   polygonName <- caribouShapefile[[nm]][pol]
   print(paste0("Calculating disturbances for polygon ", polygonName))
   # 1. Make sure the layers are all masked for the study area to avoid problems
@@ -12,7 +11,6 @@
   # use it as template for the fire layer
   templateRaster <- bufferedAnthropogenicDisturbance500m
   templateRaster[!is.na(templateRaster[])] <- 0
-
   # Data sanity check: do I have burns where it is not possible (i.e. water)?
   if (makeAssertions) {
     templateRasterWrongFires <- templateRaster

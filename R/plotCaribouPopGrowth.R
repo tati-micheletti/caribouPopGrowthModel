@@ -7,13 +7,15 @@ plotCaribouPopGrowth <- function(startTime,
                                  yearSimulationStarts,
                                  reps = paste0("run", 1:5),
                                  outputFolder,
+                                 whichPolys = NULL, # Optional to ensure only specific polygons to be plotted
                                  timeSpan = "annual") # Optional = "timeStep" (normally every 10y)
-  {
+{
+  
   library("Require")
   Require("data.table")
   Require("ggplot2")
   if (any(all(is.null(resultsMainFolder), 
-          is.null(predictedCaribou)),
+              is.null(predictedCaribou)),
           all(!is.null(resultsMainFolder), 
               !is.null(predictedCaribou))))
     stop("Please provide either predictedCaribou or resultsMainFolder")
@@ -23,112 +25,123 @@ plotCaribouPopGrowth <- function(startTime,
     climateModel <- "CCSM4"
   }
   if (!is.null(resultsMainFolder)){
-    pth <- file.path(resultsMainFolder, paste(climateModel, reps, sep = "_"))
+    allcombs <- data.table(expand.grid(climateModel, reps))
+    allcombs[, comb := paste0(Var1, "_",Var2)]
+    pth <- file.path(resultsMainFolder, allcombs[["comb"]])
     
-    predictedCaribou <- lapply(seq_along(pth), function(filePath){
-      tb <- readRDS(list.files(path = pth[filePath], 
+    predictedCaribou <- rbindlist(lapply(seq_along(pth), function(filePathIndex){
+      tb <- readRDS(list.files(path = pth[filePathIndex], 
                                pattern = paste0("predictedCaribou_year", currentTime), 
                                full.names = TRUE, recursive = TRUE))
-      addedTB <- lapply(tb, function(TB){
-        TB[, Replicate := reps[filePath]]
+      addedTB <- rbindlist(lapply(names(tb), function(years){
+        TB <- tb[[years]]
+        climMod <- strsplit(basename(pth[filePathIndex]), "_")[[1]][1]
+        replic <- strsplit(basename(pth[filePathIndex]), "_")[[1]][2]
+        TB[, c("climateModel", "Replicate", "Year") := list(climMod, 
+                                                            replic, 
+                                                            usefulFuns::substrBoth(years, 4, T))]
         return(TB)
-      })
+      }))
       return(addedTB)
-    })
-    names(predictedCaribou) <- reps
-    
-    predictedCaribouOrganized <- lapply(X = 1:unique(lengths(predictedCaribou)), 
-                                        FUN = function(index){
-                                          sbset <- rbindlist(lapply(predictedCaribou, `[[`, index))
-                                          return(sbset)
-                                        })
-    namesCaribou <- if (!currentTime %in% seq(startTime, currentTime, by = 10)){
-      paste0("Year", c(seq(startTime, currentTime, by = 10), currentTime))
-    } else {
-      paste0("Year", c(seq(startTime, currentTime, by = 10)))
-    }
-    names(predictedCaribouOrganized) <- namesCaribou
-    predictedCaribou <- predictedCaribouOrganized
-  }
-
-  if (is(predictedCaribou, "list")){
-    tableAll <- data.table::rbindlist(lapply(X = names(predictedCaribou), FUN = function(yr){
-      y <- usefulFuns::substrBoth(strng = yr, howManyCharacters = 4, fromEnd = TRUE)
-      predictedCaribou[[yr]][, Year := as.numeric(y)]
-      return(predictedCaribou[[yr]])
     }))
+    
+    tableAll <- predictedCaribou
   } else {
     tableAll <- predictedCaribou
   }
   
   yaxis <- if (timeSpan == "annual") "annualLambda" else "growth"
   yaxisName <- yaxis
-  
+  if (is(tableAll, "list")){ # If this is a list (i.e. if the results are coming from the module), collapse into a data.table
+    condTB <- rbindlist(lapply(names(tableAll), function(YYYY){
+      y <- as.numeric(strsplit(YYYY, "Year")[[1]][2])
+      tb  <- tableAll[[YYYY]]
+      tb[, c("Year", "climateModel") := list(y, climateModel)]
+      return(tb)
+    }))
+    tableAll <- condTB
+  }
   names(tableAll)[names(tableAll) == "polygon"] <- "Polygon"
-  tableAll[, minRib := min(get(paste0(yaxis, "Min"))), by = c("Year", "Polygon", "femSurvMod_recrMod")]
-  tableAll[, maxRib := max(get(paste0(yaxis, "Max"))), by = c("Year", "Polygon", "femSurvMod_recrMod")]
-  tableAll[, paste0("average", yaxis) := mean(get(yaxis)), by = c("Year", "Polygon", "femSurvMod_recrMod")]
-
-    yrReady <- lapply(X = unique(tableAll[["area"]]), 
-                                            FUN = function(shp){
-        polyReady <- lapply(X = unique(tableAll[area == shp, femSurvMod_recrMod]), 
-                                                  FUN = function(mod){
-          message(paste0("Plotting caribou population growth for ", shp, 
-                         " for ", mod))
-          DT <- tableAll[area == shp & femSurvMod_recrMod == mod, ]
-          survMod <- strsplit(strsplit(mod, "::")[[1]][1], "_National")[[1]][1]
-          recMod <- strsplit(strsplit(mod, "::")[[1]][2], "_National")[[1]][1]
-          
-          tryCatch(quickPlot::clearPlot(), error = function(e){
-            message(crayon::red("quickPlot::clearPlot() failed"))
-            })
-            
-            popModelPlot <- ggplot2::ggplot(data = DT, aes(x = Year,
-                                                           y = get(paste0("average", yaxis)),
-                                                           colour = Polygon, 
-                                                           group = 1)) +
-              geom_line(size = 1.2) +
-              facet_grid(rows = vars(Polygon)) +
-              geom_hline(yintercept = 1, linetype = "dotted", 
-                         color = "grey73", size = 1) +
-              geom_line(size = 1.2) +
-              geom_ribbon(aes(ymin = minRib, 
-                              ymax = maxRib,
-                              fill = Polygon), alpha = 0.3, colour = NA) +
-              ggtitle(label = paste0("Caribou population dynamics: ", climateModel),
-                      subtitle = paste0("Female Survival Model: ", survMod,
-                                        "\nRecruitment Model: ", recMod)) +
-              theme(legend.position = "bottom",
-                    strip.text.y = element_blank(),
-                    legend.key = element_blank(),
-                    legend.title = element_blank()) +
-              ylab(yaxisName)
-            if ("Replicate" %in% names(DT)){
-              popModelPlot <- popModelPlot + geom_jitter(data = DT, aes(x = Year,
-                                                                        y = get(yaxis)),
-                                                         size = 1, colour = "grey40",
-                                                         width = 1)
-            }
-            
-            if(currentTime == endTime){
-              tryCatch(quickPlot::clearPlot(), 
-                       error = function(e){
-                         message(crayon::red("quickPlot::clearPlot() failed"))
-                         })
-              png(file.path(outputFolder, 
-                            paste0("caribou_", shp, "_", climateModel,
-                                   "_", recMod,"_", survMod,
-                                   ifelse(!is.null(resultsMainFolder), "_reps", ""),
-                                   ".png")), 
-                  width = 700, height = 480)
-              print(popModelPlot)
-              dev.off()
-            }
-            return(popModelPlot)
-          })
-        names(polyReady) <- unique(tableAll[area == shp, femSurvMod_recrMod])
-        return(polyReady)
-    })
-    names(yrReady) <- unique(tableAll[["area"]])
-    return(yrReady)
+  tableAll[, minRib := min(get(paste0(yaxis, "Min"))), by = c("Year", "Polygon", 
+                                                              "climateModel", "femSurvMod_recrMod")]
+  tableAll[, maxRib := max(get(paste0(yaxis, "Max"))), by = c("Year", "Polygon", 
+                                                              "climateModel", "femSurvMod_recrMod")]
+  tableAll[, paste0("average", yaxis) := mean(get(yaxis)), by = c("Year", "Polygon", "climateModel", 
+                                                                  "femSurvMod_recrMod")]
+  if (!is.null(whichPolys)){
+    tableAll <- tableAll[Polygon %in% whichPolys, ]
+  }
+  
+  yrReady <- lapply(X = unique(tableAll[["area"]]), 
+                    FUN = function(shp){
+                      polyReady <- lapply(X = unique(tableAll[area == shp, femSurvMod_recrMod]), 
+                                          FUN = function(mod){
+                                            message(paste0("Plotting caribou population growth for ", shp, 
+                                                           " for ", mod))
+                                            DT <- tableAll[area == shp & femSurvMod_recrMod == mod, ]
+                                            survMod <- strsplit(strsplit(mod, "::")[[1]][1], "_National")[[1]][1]
+                                            recMod <- strsplit(strsplit(mod, "::")[[1]][2], "_National")[[1]][1]
+                                            
+                                            tryCatch(quickPlot::clearPlot(), error = function(e){
+                                              message(crayon::red("quickPlot::clearPlot() failed"))
+                                            })
+                                            
+                                            DT[Polygon == "Dehcho North_v2", Polygon := "Dehcho North"]
+                                            DT[Polygon == "Dehcho South_v2", Polygon := "Dehcho South"]
+                                            
+                                            popModelPlot <- ggplot2::ggplot(data = DT, aes(x = Year,
+                                                                                           colour = Polygon, 
+                                                                                           group = climateModel)) +
+                                              geom_line(size = 0.9, aes(y = get(paste0("average", yaxis)),
+                                                                        group = climateModel,
+                                                                        linetype = climateModel)) +
+                                              facet_grid(rows = vars(Polygon)) +
+                                              geom_hline(yintercept = 1, linetype = "dotted", 
+                                                         color = "grey73", size = 1) +
+                                              geom_ribbon(aes(ymin = minRib, 
+                                                              ymax = maxRib,
+                                                              group = climateModel,
+                                                              fill = Polygon), alpha = 0.1, colour = NA) +
+                                              theme_linedraw() +
+                                              # ggtitle(label = paste0("Caribou population dynamics: ", climateModel),
+                                              #         subtitle = paste0("Female Survival Model: ", survMod,
+                                              #                           "\nRecruitment Model: ", recMod)) +
+                                              theme(legend.position = "bottom",
+                                                    title = element_blank(),
+                                                    strip.text.y = element_blank(),
+                                                    legend.key = element_blank(),
+                                                    legend.title = element_blank(),
+                                                    axis.title = element_text(family = "Arial")) +
+                                              ylab(expression(Mean~annual~lambda)) +
+                                              xlab("year")
+                                            
+                                            if ("Replicate" %in% names(DT)){
+                                              popModelPlot <- popModelPlot + geom_jitter(data = DT, aes(x = Year,
+                                                                                                        y = get(yaxis)),
+                                                                                         size = 1, colour = "grey40",
+                                                                                         width = 0.2)
+                                            }
+                                            
+                                            if(currentTime == endTime){
+                                              tryCatch(quickPlot::clearPlot(), 
+                                                       error = function(e){
+                                                         message(crayon::red("quickPlot::clearPlot() failed"))
+                                                       })
+                                              png(file.path(outputFolder, 
+                                                            paste0("caribou_", shp, "_", paste(climateModel, collapse = "_"),
+                                                                   "_", recMod,"_", survMod,
+                                                                   ifelse(!is.null(resultsMainFolder), "_reps", ""),
+                                                                   ".png")),
+                                                  units = "cm", res = 300,
+                                                  width = 29, height = 21)
+                                              print(popModelPlot)
+                                              dev.off()
+                                            }
+                                            return(popModelPlot)
+                                          })
+                      names(polyReady) <- unique(tableAll[area == shp, femSurvMod_recrMod])
+                      return(polyReady)
+                    })
+  names(yrReady) <- unique(tableAll[["area"]])
+  return(yrReady)
 }

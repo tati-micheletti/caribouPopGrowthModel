@@ -92,13 +92,9 @@ extractDisturbanceFast <- function(shapefileName,
   
   # Extract the caribou shapefile values by fasterizing it. Way faster than raster::extract
   message(crayon::blue("Fasterizing caribou shapefile..."))
-  caribouShapefile <- Cache(reproducible::postProcess, x = caribouShapefile,
-                            rasterToMatch = rasterToMatch,
-                            destinationPath = destinationPath,
-                            filename2 = "caribouShapefile",
-                            userTags = c("module:caribouPopGrowthModel",
-                                         "objectName:caribouShapefile",
-                                         "outFun:Cache"))
+  caribouShapefile <- projectInputs(x = caribouShapefile,
+                                     targetCRS = crs(rasterToMatch))
+  
   caribouShapefileSF <- sf::st_as_sf(caribouShapefile)
   nm <- if (!is.null(caribouShapefile$NAME)){
     "NAME"

@@ -11,41 +11,82 @@ output:
 knitr::opts_chunk$set(cache = FALSE, echo = TRUE, eval = FALSE)
 ```
 
+This module uses the coefficients for recruitment and survival of Woodland Boreal Caribou in Canada to forecast population growth rates into the future. Two models can be chosen for recruitment and survival: published ECCC (2011) or Johnson et al., (2020).
+
 # Usage
 
 ```{r module_usage}
-# Load SpaDES
-# Load SpaDES
-library("SpaDES")
-library("raster")
+require("Require")
+Require("testthat")
+Require("SpaDES")
+Require("raster")
+
+# Check current directory. It needs to be the toplevel of the module
+message(paste0("Your working directory is ", getwd()))
+testthat::expect_true(basename(getwd()) == "caribouPopGrowthModel", 
+                      label = paste0("To use this module, please make sure your current directory ",
+       "is the top level of the module 'caribouPopGrowthModel'. You can",
+       " do this by either using setwd('~/caribouPopGrowthModel') or by",
+       " opening (double-clicking) the caribouPopGrowthModel.Rproj file. "))
 
 # Source functions in R folder
-invisible(sapply(X = list.files(file.path(getwd(), "R"), full.names = TRUE), FUN = source))
+invisible(sapply(X = list.files(file.path(getwd(), "R"), 
+                                full.names = TRUE), FUN = source))
 
 # Set a storage project folder
-workDirectory <- getwd()
-message(paste0("Your working directory is ", workDirectory))
 message(paste0("Your current temporary directory is ", tempdir()))
 
-setPaths(modulePath = dirname(workDirectory),
-         inputPath = file.path(workDirectory, "inputs"), 
-         outputPath = file.path(workDirectory, "outputs"), 
-         cachePath = file.path(workDirectory, "cache"))
+setPaths(modulePath = dirname(getwd()),
+         inputPath = file.path(getwd(), "inputs"), 
+         outputPath = file.path(getwd(), "outputs"), 
+         cachePath = file.path(getwd(), "cache"))
 getPaths() # shows where the 4 relevant paths are
 
-times <- list(start = 2011, end = 2021)
-
-
-rstCurrentBurnList <- 
-historicalFires <-
+times <- list(start = 2011, end = 2100)
+params <- list(
+  "caribouPopGrowthModel" = list(
+    "polygonsOfInterest" = c("Dehcho North_v2", "Dehcho South_v2", 
+                             "Hay River Lowlands", "GSA North", "GSA South"),
+    ".growthInterval" = 10
+  )
+)
 
 if (quickPlot::isRstudioServer()) options(httr_oob_default = TRUE)
 
-caribous <- simInitAndSpades(times = times, 
-                             params = list(), 
-                             modules = list("caribouPopGrowthModel"),
-                             objects = list())
+######################## BEGINNING ERASE!
 
+studyArea <- Cache(prepInputs, url = "https://drive.google.com/file/d/1RPfDeHujm-rUHGjmVs6oYjLKOKDF0x09/view?usp=sharing",
+                                destinationPath = file.path(Paths$modulePath, "data"),
+                                omitArgs = "destinationPath")
+
+rasterToMatch <- Cache(prepInputs, url = "https://drive.google.com/file/d/11yCDc2_Wia2iw_kz0f0jOXrLpL8of2oM/view?usp=sharing", 
+                                    studyArea = studyArea,
+                                    destinationPath = file.path(Paths$modulePath, "data"),
+                                    overwrite = TRUE,
+                                    omitArgs = c("destinationPath", "overwrite", "filename2"))
+
+listSACaribou <- list("metaHerds" =  Cache(prepInputs, 
+                       targetFile = "Enhanced_MetaHerds_20191029.shp",
+                       archive = "Johnsonetal2020_studyareas.zip",
+                       alsoExtract = "similar",
+                       url = "https://drive.google.com/file/d/1lH_Oy2pEHv9dtSsAXn-UrDHrW1aJOOCd",
+                       studyArea = studyArea,
+                       destinationPath = Paths$inputPath,
+                       filename2 = NULL,
+                       # rasterToMatch = rasterToMatch,
+                       userTags = c("inputs", 
+                                    "outFun:Cache",
+                                    "step:prepHeardsPoly")))
+listSACaribou$metaHerds <- projectInputs(listSACaribou$metaHerds, targetCRS = crs(rasterToMatch))
+######################## END ERASE!
+
+caribous <- simInitAndSpades(times = times, 
+                             params = params, 
+                             outputs =  data.frame(objectName = c("disturbances",
+                                                                  "predictedCaribou"),
+                                                   saveTime = times$end),
+                             modules = list("caribouPopGrowthModel"),
+                             objects = list("listSACaribou" = listSACaribou))
 ```
 
 # Events

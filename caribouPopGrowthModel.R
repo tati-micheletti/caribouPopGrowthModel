@@ -17,11 +17,14 @@ defineModule(sim, list(
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
   reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns", "tictoc",
-                  "future", "future.apply"),
+                  "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc"),
   parameters = rbind(
     defineParameter("predictLastYear", "logical", TRUE, NA, NA, 
                     paste0("Should it schedule events for the last year",
                            " of simulation if this is not a multiple of interval?")),
+    defineParameter("polygonsOfInterest", "character", NULL, NA, NA, 
+                    paste0("If results should be presented only for a set of polygons",
+                           " these should be expressed here")),
     defineParameter(".useCache", "logical", FALSE, NA, NA, 
                     "Should this entire module be run with caching activated?"),
     defineParameter("nBootstrap", "numeric", 100, NA, NA, 
@@ -32,6 +35,9 @@ defineModule(sim, list(
                     "Interval of plotting time"),
     defineParameter(".useDummyData", "logical", FALSE, NA, NA, 
                     "Should use dummy data? Automatically set when data is not available"),
+    defineParameter(name = "climateModel", class = "character",
+                    default = NULL, min = NA, max = NA,
+                    desc = paste0("For identifying the climate scenario")),
     defineParameter("recoveryTime", "numeric", 40, NA, NA, 
                     paste0("Time to recover the forest ",
                            "enough for caribou (ECCC 2011; Johnson et al. 2020)")),
@@ -39,9 +45,6 @@ defineModule(sim, list(
                     paste0("Which population model to use? Options",
                            "are in the file popModels.R in the R folder",
                            " Default is the simplest lamdba model")),
-    defineParameter(name = "baseLayer", class = "character", default = 2005, min = NA, max = NA, 
-                    desc = paste0("Which layer should be used? LCC05 or LCC10? Only used if ",
-                                  "waterRaster is not supplied. Used to derive the water layer")),
     defineParameter(name = ".growthInterval", class = "numeric", default = 1, 
                     min = NA, max = NA, 
                     desc = paste0("Interval of Population Growth. ",
@@ -63,9 +66,9 @@ defineModule(sim, list(
                                   "future does NOT yet supports 'multicore' plan in",
                                   " RStudio. If parallelizing is important, please ",
                                   "consider running this module in R Gui")),
-    defineParameter(name = "Type", class = "character",
-                    default = "National", min = NA, max = NA, 
-                    desc = paste0("Only option available for now")),
+    # defineParameter(name = "Type", class = "character", # DEPRECATED
+    #                 default = "National", min = NA, max = NA, 
+    #                 desc = paste0("Only option available for now")),
     defineParameter(name = "femaleSurvivalModelNumber", class = "character", 
                     default = "M1", min = NA, max = NA, 
                     desc = paste0("Which female survival model should be used for the simulations?",
@@ -97,8 +100,10 @@ defineModule(sim, list(
     expectsInput(objectName = "listSACaribou", objectClass = "list", 
                   desc = paste0("List of caribou areas to summarize predictions for",
                                 "Defaults to shapefile of polygons in the NWT")),
-    expectsInput(objectName = "historicalFires", objectClass = "list", 
-                 desc = "List for fire by year. This layer was built by James Hodson (GNWT)",
+    expectsInput(objectName = "historicalFires", objectClass = "SpatialPolygonsDataFrame", 
+                 desc = paste0("All fires in a year are identified by the year ",
+                               " (i.e. sam ID for all). This layer was built by",
+                               " James Hodson (GNWT) for NWT)"),
                  sourceURL = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7"),
     expectsInput(objectName = "flammableMap", objectClass = "RasterLayer", 
                  desc = paste0("Flammable map to mask historical and current fireLayer ",
@@ -172,7 +177,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "makingModel")
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "gettingData")
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribou")
-      # sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot", eventPriority = .last())
+      sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot", eventPriority = .last())
       #TODO NOT FULLY IMPLEMENTED. CODE NEEDS REVISION.
       # if (!P(sim)$popModel %in% c("annualLambda", "timestepLambda"))
       #   sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
@@ -223,7 +228,10 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                          pathData = dataPath(sim), # To compare to current time. First time needs 
                                          # to be different as we are creating layers, not updating them
                                          rasterToMatch = sim$rasterToMatch)
-      
+      # Assertion for changes in rasterToMatch
+      if (ncell(sim$rasterToMatch) != ncell(sim$fireLayerList[[paste0("Year", time(sim))]]))
+        stop("The number of cells in the RTM does not match the number of cells in the fireLayer. ",
+             "Please make sure all layers provided align.")
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "gettingData")
       if (P(sim)$predictLastYear){
@@ -288,9 +296,11 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         sim$plotCaribou <- plotCaribouPopGrowth(startTime = start(sim),
                                                                currentTime = time(sim),
                                                                endTime = end(sim),
+                                                               climateModel = P(sim)$climateModel,
                                                                predictedCaribou = sim$predictedCaribou,
                                                                yearSimulationStarts = start(sim),
-                                                               outputFolder = pathOutputs(sim))
+                                                               whichPolys = P(sim)$polygonsOfInterest,
+                                                               outputFolder = Paths$outputPath)
     },
     warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],
                   "' in module '", current(sim)[1, "moduleName", with = FALSE], "'", sep = ""))
@@ -299,6 +309,9 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
 }
 
 .inputObjects <- function(sim) {
+  
+  stepCacheTag <- c("module:caribouPopGrowth",
+                    "event:.inputObjects")
   
   # THis is already set in metadata
   # params(sim)[[currentModule(sim)]]$.useDummyData <- FALSE
@@ -316,16 +329,16 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     
   if (!suppliedElsewhere(object = "studyArea", sim = sim)){
     sim$studyArea <- Cache(prepInputs,
-                                url = "https://drive.google.com/open?id=1LUxoY2-pgkCmmNH5goagBp3IMpj6YrdU",
+                                url = "https://drive.google.com/file/d/1RPfDeHujm-rUHGjmVs6oYjLKOKDF0x09/view?usp=sharing",
                                 destinationPath = dataPath(sim),
                                 omitArgs = "destinationPath")
   }
   
   if (!suppliedElsewhere(object = "rasterToMatch", sim = sim)){
-    sim$rasterToMatch <- Cache(prepInputs, url = "https://drive.google.com/open?id=1fo08FMACr_aTV03lteQ7KsaoN9xGx1Df", 
+    sim$rasterToMatch <- Cache(prepInputs, url = "https://drive.google.com/file/d/11yCDc2_Wia2iw_kz0f0jOXrLpL8of2oM/view?usp=sharing", 
                                     studyArea = sim$studyArea,
-                                    targetFile = "RTM.tif", destinationPath = dataPath(sim),
-                                    overwrite = TRUE, filename2 = NULL,
+                                    destinationPath = dataPath(sim),
+                                    overwrite = TRUE,
                                     omitArgs = c("destinationPath", "overwrite", "filename2"))
   }
   if (!suppliedElsewhere(object = "listSACaribou", sim = sim)){
@@ -353,15 +366,18 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   }
 
   if (!suppliedElsewhere("waterRaster", sim)){
-  sim$waterRaster <- LandR::prepInputsLCC(year = P(sim)$baseLayer,
-                                                 destinationPath = Paths[["inputPath"]], 
-                                                 studyArea = sim$studyArea, 
-                                                 rasterToMatch = sim$rasterToMatch)
+  sim$waterRaster <- prepInputs(url = paste0("https://drive.google.com/file/d",
+                                              "/1eZdn3kwCWjl3fTQwxnkpQhYmLLuBB",
+                                              "gVe/view?usp=sharing"), 
+                                 destinationPath = Paths[["inputPath"]],
+                                 studyArea = sim$studyArea,
+                                 overwrite = TRUE,
+                                 rasterToMatch = sim$rasterToMatch,
+                                 method = "ngb")
   # If LCC2005, water = 37
   # If LCC2010, water = 18
-  waterValLCC <- ifelse(P(sim)$baseLayer == 2005, 37, 18)
   sim$waterRaster[!is.na(sim$waterRaster[]) & 
-                    sim$waterRaster[] != waterValLCC] <- NA
+                    sim$waterRaster[] != 37] <- NA
   sim$waterRaster[!is.na(sim$waterRaster[])] <- 1
   # Remove annoying colortable
   wV <- getValues(sim$waterRaster)
@@ -375,49 +391,53 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                                   alsoExtract = "similar",
                                                   url = "https://drive.google.com/file/d/1yz39dGW4XMJk5ox6TuVUOMrU4q3mhfhU/view?usp=sharing",
                                                   destinationPath = Paths$inputPath, 
-                                                  studyArea = studyArea,
-                                                  rasterToMatch = rasterToMatch,
+                                                  studyArea = sim$studyArea,
+                                                  rasterToMatch = sim$rasterToMatch,
                                                   userTags = c(stepCacheTag,
                                                                "step:prepAnthropogenicDistLayer", "outFun:Cache"))
     bufferedAnthropogenicDisturbance500mSF <- sf::st_as_sf(bufferedAnthropogenicDisturbance500m)
     bufferedAnthropogenicDisturbance500mSF$fieldSF <- 1
     bufferedAnthropogenicDisturbance500m <- fasterize::fasterize(sf = bufferedAnthropogenicDisturbance500mSF,
-                                                                 raster = rasterToMatch, field = "fieldSF", 
+                                                                 raster = sim$rasterToMatch, field = "fieldSF", 
                                                                  background = 0)
     buffAnthroDist500m <- Cache(postProcess, x = bufferedAnthropogenicDisturbance500m,
-                                destinationPath = Paths$inputPath, 
-                                studyArea = studyArea,
-                                rasterToMatch = rasterToMatch,
+                                destinationPath = Paths[["inputPath"]], 
+                                studyArea = sim$studyArea,
+                                rasterToMatch = sim$rasterToMatch,
                                 userTags = c(stepCacheTag,
                                              "step:maskAnthropogenicDistLayer", "outFun:Cache"))
     sim$bufferedAnthropogenicDisturbance500m <- buffAnthroDist500m
   }
   if (!suppliedElsewhere("historicalFires", sim)){
-    fireYears <- 1991:2017
-    sim$historicalFires <- Cache(fireSenseUtils::getFirePolygons, 
-                                 years = fireYears,
-                                 studyArea = aggregate(sim$studyArea),
-                                 pathInputs = Paths$inputPath, 
-                                 userTags = paste0("years:", range(fireYears)))
+    sim$historicalFires <- prepInputs(url = paste0("https://drive.google.com/",
+                                                   "file/d/1fSsgP1VUgQbhq4GpCE",
+                                                   "PZh2yVjh5SN2bv/view?usp=",
+                                                   "sharing"),
+                                      targetFile = "historicalFires.qs",
+                                      destinationPath = Paths[["inputPath"]],
+                                      overwrite = TRUE,
+                                      fun = "qs::qread")
   }
   if (!suppliedElsewhere("rstCurrentBurnList", sim)){
     warning("rstCurrentBurnList needs to be provided and was not found in the simList. 
              Trying to find it in inputPath", immediate. = TRUE)
     sim$rstCurrentBurnList <- tryCatch(
-      readRDS(file.path(Paths$inputPath, "rstCurrentBurnList_year2100.rds")
+      readRDS(file.path(Paths[["inputPath"]], 
+                        "rstCurrentBurnList_year2100.rds")
       ),
       error = function(e) {
-        warning("rstCurrentBurnList was not found. Generating DUMMY fire data.",
+        warning("rstCurrentBurnList was not found. Generating DUMMY fire data ",
+                "for the NWT. If your study area does not match this location, ",
+                "no fires will be generated!",
                 immediate. = TRUE)
-        rstCurrentBurnList <- Cache(prepInputs, url = "",
+        rstCurrentBurnList2 <- Cache(prepInputs, url = "https://drive.google.com/file/d/1PRJYjie5vdsq_4W6WN5zjnnjuBlt8cJY/view?usp=sharing",
                                     destinationPath = Paths[["inputPath"]],
-                                    studyArea = sim$studyArea,
-                                    rasterToMatch = sim$rasterToMatch,
+                                    fun = "readRDS",
                                     userTags = c("module:caribouPopGrowthModule",
                                                  "event:.inputObjects"))
+        return(rstCurrentBurnList)
       })
     message(crayon::green("rstCurrentBurnList loaded successfully!"))
   }
-
   return(invisible(sim))
 }

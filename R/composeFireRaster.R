@@ -6,11 +6,13 @@ composeFireRaster <- function(currentTime,
                               rasterToMatch,
                               recoveryTime,
                               thisYearsFires){
-  
+
   firesFilenameRas <- file.path(pathData, paste0("historicalFireRaster_", 
                                                  1+(currentTime-recoveryTime),"to",
-                                                 currentTime,".tif"))
-  firesFilenameList <- file.path(pathData, "historicalFireList.qs")
+                                                 currentTime, "_",
+                                                 ncell(rasterToMatch),".tif"))
+  firesFilenameList <- file.path(pathData, paste0("historicalFireList","_",
+                                 ncell(rasterToMatch), ".qs"))
   
   minYear <- 1+(currentTime - recoveryTime)
   
