@@ -49,8 +49,10 @@ makeDTforPopGrowth <- function(populationGrowthTable,
       # If StdErr is NA, calculate StdErr
       # This only happens on Johnson models
       # Data points: recruitment (N = 58); adult female survival (N = 46) --> From Johnson et al 2020
-      N <- ifelse(resVar == "recruitment", 58, 46)
-      stdErrCalc <- calcFromCI(n = N,
+
+      # N <- ifelse(resVar == "recruitment", 58, 46) # Chatting with EM on May 4th we
+      # agreed that we don't need the N
+      stdErrCalc <- calcFromCI(N = N,
                                ci_lower = DT[["lowerCI"]],
                                ci_upper = DT[["upperCI"]])
       DT[, StdErr := stdErrCalc]
@@ -61,10 +63,11 @@ makeDTforPopGrowth <- function(populationGrowthTable,
   return(DTs)
 }
 
-calcFromCI <- function(n, ci_upper, ci_lower, std = TRUE){
-  SD <- (sqrt(n)*(ci_upper-ci_lower))/3.92
+calcFromCI <- function(N, ci_upper, ci_lower, std = TRUE){
+  # SD <- (sqrt(N)*(ci_upper-ci_lower))/3.92
+  SD <- (ci_upper-ci_lower)/3.92
   # for StdErr
-  if (std)
-    return(SD) else
-      return(SD/sqrt(n))
+  # if (std)
+    return(SD) #else
+      # return(SD/sqrt(N))
 }
