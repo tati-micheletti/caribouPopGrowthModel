@@ -439,7 +439,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                 "for the NWT. If your study area does not match this location, ",
                 "no fires will be generated!",
                 immediate. = TRUE)
-        rstCurrentBurnList2 <- Cache(prepInputs, url = "https://drive.google.com/file/d/1PRJYjie5vdsq_4W6WN5zjnnjuBlt8cJY/view?usp=sharing",
+        rstCurrentBurnList <- Cache(prepInputs, url = "https://drive.google.com/file/d/1PRJYjie5vdsq_4W6WN5zjnnjuBlt8cJY/view?usp=sharing",
                                     destinationPath = Paths[["inputPath"]],
                                     fun = "readRDS",
                                     userTags = c("module:caribouPopGrowthModule",
