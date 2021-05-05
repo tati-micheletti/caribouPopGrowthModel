@@ -7,7 +7,7 @@ plotCaribouPopGrowth <- function(startTime,
                                  yearSimulationStarts,
                                  reps = paste0("run", 1:5),
                                  outputFolder,
-                                 whichPolys = NULL, # Optional to ensure only specific polygons to be plotted
+                                 whichPolysToIgnore = NULL, # Optional to ensure only specific polygons to be plotted
                                  timeSpan = "annual") # Optional = "timeStep" (normally every 10y)
 {
   
@@ -44,30 +44,31 @@ plotCaribouPopGrowth <- function(startTime,
       }))
       return(addedTB)
     }))
-    
-    tableAll <- predictedCaribou
-  } else {
-    tableAll <- predictedCaribou
+    tableAll <- predictedCaribou 
   }
+  
+  if (is(tableAll, "list")){ # If this is a list (i.e. if the results are coming from the module), collapse into a data.table
+      condTB <- rbindlist(lapply(names(tableAll), function(YYYY){
+          y <- as.numeric(strsplit(YYYY, "Year")[[1]][2])
+          tb  <- tableAll[[YYYY]]
+          tb[, c("Year", "climateModel") := list(y, climateModel)]
+          return(tb)
+        }))
+      tableAll <- condTB
+    }
+  
   yaxis <- if (timeSpan == "annual") "annualLambda" else "growth"
   yaxisName <- yaxis
-  if (is(tableAll, "list")){ # If this is a list (i.e. if the results are coming from the module), collapse into a data.table
-    condTB <- rbindlist(lapply(names(tableAll), function(YYYY){
-      y <- as.numeric(strsplit(YYYY, "Year")[[1]][2])
-      tb  <- tableAll[[YYYY]]
-      tb[, c("Year", "climateModel") := list(y, climateModel)]
-      return(tb)
-    }))
-    tableAll <- condTB
-  }
+  
   tableAll[, minRib := min(get(paste0(yaxis, "Min"))), by = c("Year", "Herd", 
                                                               "climateModel", "femSurvMod_recrMod")]
   tableAll[, maxRib := max(get(paste0(yaxis, "Max"))), by = c("Year", "Herd", 
                                                               "climateModel", "femSurvMod_recrMod")]
   tableAll[, paste0("average", yaxis) := mean(get(yaxis)), by = c("Year", "Herd", "climateModel", 
                                                                   "femSurvMod_recrMod")]
-  if (!is.null(whichPolys)){
-    tableAll <- tableAll[Herd %in% whichPolys, ]
+  
+  if (!is.null(whichPolysToIgnore)){
+    tableAll <- tableAll[!Herd %in% whichPolysToIgnore, ]
   }
   
   yrReady <- lapply(X = unique(tableAll[["area"]]), 
@@ -83,10 +84,15 @@ plotCaribouPopGrowth <- function(startTime,
                                             tryCatch(quickPlot::clearPlot(), error = function(e){
                                               message(crayon::red("quickPlot::clearPlot() failed"))
                                             })
+                                            if (unique(DT[["area"]]) == "metaHeards"){
+                                              DT[Herd == "Dehcho North_v2", Herd := "Dehcho North"]
+                                              DT[Herd == "Dehcho South_v2", Herd := "Dehcho South"]
+                                              DT[, Herd := factor(Herd, 
+                                                                  levels = c("GSA North", "GSA South", 
+                                                                             "Dehcho North", "Dehcho South", 
+                                                                             "Hay River Lowlands"))]
+                                            }
                                             
-                                            DT[Herd == "Dehcho North_v2", Herd := "Dehcho North"]
-                                            DT[Herd == "Dehcho South_v2", Herd := "Dehcho South"]
-
                                             popModelPlot <- ggplot2::ggplot(data = DT, aes(x = Year,
                                                                                            colour = Herd, 
                                                                                            group = climateModel)) +
@@ -112,12 +118,11 @@ plotCaribouPopGrowth <- function(startTime,
                                                     axis.title = element_text(family = "Arial")) +
                                               ylab(expression(Mean~annual~lambda)) +
                                               xlab("year")
-                                            
                                             if ("Replicate" %in% names(DT)){
                                               popModelPlot <- popModelPlot + geom_jitter(data = DT, aes(x = Year,
                                                                                                         y = get(yaxis)),
-                                                                                         size = 1, colour = "grey40",
-                                                                                         width = 0.2)
+                                                                                         size = 0.5, colour = "grey40",
+                                                                                         width = 0.7)
                                             }
                                             
                                             if(currentTime == endTime){
