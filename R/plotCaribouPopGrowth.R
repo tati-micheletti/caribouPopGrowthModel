@@ -46,16 +46,18 @@ plotCaribouPopGrowth <- function(startTime,
     }))
     tableAll <- predictedCaribou 
   }
-  
-  if (is(tableAll, "list")){ # If this is a list (i.e. if the results are coming from the module), collapse into a data.table
-      condTB <- rbindlist(lapply(names(tableAll), function(YYYY){
-          y <- as.numeric(strsplit(YYYY, "Year")[[1]][2])
-          tb  <- tableAll[[YYYY]]
-          tb[, c("Year", "climateModel") := list(y, climateModel)]
-          return(tb)
-        }))
+
+  if (!is.null(predictedCaribou)){
+    if (is(predictedCaribou, "list")){ # If this is a list (i.e. if the results are coming from the module), collapse into a data.table
+      condTB <- rbindlist(lapply(names(predictedCaribou), function(YYYY){
+        y <- as.numeric(strsplit(YYYY, "Year")[[1]][2])
+        tb  <- predictedCaribou[[YYYY]]
+        tb[, c("Year", "climateModel") := list(y, climateModel)]
+        return(tb)
+      }))
       tableAll <- condTB
-    }
+    } 
+  }
   
   yaxis <- if (timeSpan == "annual") "annualLambda" else "growth"
   yaxisName <- yaxis
