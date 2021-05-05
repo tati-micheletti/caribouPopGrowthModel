@@ -49,7 +49,6 @@ plotCaribouPopGrowth <- function(startTime,
   } else {
     tableAll <- predictedCaribou
   }
-  
   yaxis <- if (timeSpan == "annual") "annualLambda" else "growth"
   yaxisName <- yaxis
   if (is(tableAll, "list")){ # If this is a list (i.e. if the results are coming from the module), collapse into a data.table
@@ -61,15 +60,14 @@ plotCaribouPopGrowth <- function(startTime,
     }))
     tableAll <- condTB
   }
-  names(tableAll)[names(tableAll) == "polygon"] <- "Polygon"
-  tableAll[, minRib := min(get(paste0(yaxis, "Min"))), by = c("Year", "Polygon", 
+  tableAll[, minRib := min(get(paste0(yaxis, "Min"))), by = c("Year", "Herd", 
                                                               "climateModel", "femSurvMod_recrMod")]
-  tableAll[, maxRib := max(get(paste0(yaxis, "Max"))), by = c("Year", "Polygon", 
+  tableAll[, maxRib := max(get(paste0(yaxis, "Max"))), by = c("Year", "Herd", 
                                                               "climateModel", "femSurvMod_recrMod")]
-  tableAll[, paste0("average", yaxis) := mean(get(yaxis)), by = c("Year", "Polygon", "climateModel", 
+  tableAll[, paste0("average", yaxis) := mean(get(yaxis)), by = c("Year", "Herd", "climateModel", 
                                                                   "femSurvMod_recrMod")]
   if (!is.null(whichPolys)){
-    tableAll <- tableAll[Polygon %in% whichPolys, ]
+    tableAll <- tableAll[Herd %in% whichPolys, ]
   }
   
   yrReady <- lapply(X = unique(tableAll[["area"]]), 
@@ -86,22 +84,22 @@ plotCaribouPopGrowth <- function(startTime,
                                               message(crayon::red("quickPlot::clearPlot() failed"))
                                             })
                                             
-                                            DT[Polygon == "Dehcho North_v2", Polygon := "Dehcho North"]
-                                            DT[Polygon == "Dehcho South_v2", Polygon := "Dehcho South"]
-                                            
+                                            DT[Herd == "Dehcho North_v2", Herd := "Dehcho North"]
+                                            DT[Herd == "Dehcho South_v2", Herd := "Dehcho South"]
+
                                             popModelPlot <- ggplot2::ggplot(data = DT, aes(x = Year,
-                                                                                           colour = Polygon, 
+                                                                                           colour = Herd, 
                                                                                            group = climateModel)) +
                                               geom_line(size = 0.9, aes(y = get(paste0("average", yaxis)),
                                                                         group = climateModel,
                                                                         linetype = climateModel)) +
-                                              facet_grid(rows = vars(Polygon)) +
+                                              facet_grid(rows = vars(Herd)) +
                                               geom_hline(yintercept = 1, linetype = "dotted", 
                                                          color = "grey73", size = 1) +
                                               geom_ribbon(aes(ymin = minRib, 
                                                               ymax = maxRib,
                                                               group = climateModel,
-                                                              fill = Polygon), alpha = 0.1, colour = NA) +
+                                                              fill = Herd), alpha = 0.1, colour = NA) +
                                               theme_linedraw() +
                                               # ggtitle(label = paste0("Caribou population dynamics: ", climateModel),
                                               #         subtitle = paste0("Female Survival Model: ", survMod,
