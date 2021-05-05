@@ -160,15 +160,18 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   switch(
     eventType,
     init = {
-      # If model is annualLambda but the user passes .growthInterval, 
-      # use timestepLambda instead
-      if (all(P(sim)$popModel == "annualLambda",
-          P(sim)$.growthInterval != 1)){
-        warning(paste0("'annualLambda' defined as popModel but .growthInterval supplied ",
-                       "and different than 1. Updating popModel to 'timestepLambda'"), 
-                immediate. = TRUE)
-        params(sim)[[currentModule(sim)]]$popModel <- "timestepLambda"
-      }
+      # THE CODE BELOW NEEDS TO BE REVISD FOR WHEN WE DECIDE TO CALCULATE THE POPULATION SIZE
+      # CURRENTLY, AS WE ARE ONLY DOING SNAPSHOT OF LAMBDA IN A GIVEN YEAR, WE SHOULDN'T 
+      # EXPONENTIATE THE CALCULATED VALUES
+      # # If model is annualLambda but the user passes .growthInterval, 
+      # # use timestepLambda instead
+      # if (all(P(sim)$popModel == "annualLambda",
+      #     P(sim)$.growthInterval != 1)){
+      #   warning(paste0("'annualLambda' defined as popModel but .growthInterval supplied ",
+      #                  "and different than 1. Updating popModel to 'timestepLambda'"), 
+      #           immediate. = TRUE)
+      #   params(sim)[[currentModule(sim)]]$popModel <- "timestepLambda"
+      # }
       
       sim$predictedCaribou <- list()
       sim$fireLayer <- list()
@@ -269,10 +272,16 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                                       recruitmentModel = sim$recruitmentModel,
                                                       disturbances = sim$disturbances[[paste0("Year", time(sim))]],
                                                       currentTime = time(sim),
-                                                      growthInterval = P(sim)$.growthInterval,
                                                       popModel = P(sim)$popModel)
       message(paste0("Caribou growth information for ", time(sim)))
-      print(sim$predictedCaribou[[paste0("Year", time(sim))]])
+      
+      summaryToPrint <- merge(sim$predictedCaribou[[paste0("Year", time(sim))]],
+            digestDisturbances(disturbances = sim$disturbances[[paste0("Year", time(sim))]], 
+                               Year = time(sim)), 
+            by = c("Herd", "area"))
+      print(summaryToPrint[, c("Herd", "average_femaleSurvival", "average_recruitment",
+                               "annualLambda", "Anthro", "fire_prop_dist", "Fire", "Total_dist",
+                               "fire_excl_anthro")])
       
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "growingCaribou")
