@@ -2,14 +2,13 @@ generatePopGrowthPredictions <- function(covTable,
                                    coeffTable,
                                    coeffValues,
                                    modelType,
-                                   polygonsAreas, 
                                    model){
 
   tic(paste0("Elapsed time for caribou prediction for ",
              model, " for ", modelType,":"))
-  # Simplifying the covariates table
-  if ("polygon" %in% names(covTable))
-      covTable[, c("polygon", "area"):= NULL]
+  # # Simplifying the covariates table
+  # if ("polygon" %in% names(covTable))
+  #     covTable[, c("polygon", "area"):= NULL]
   library("matrixStats")
   # The matrix multiple -- will result in 100 columns
   # Coefficients (coeffTable); Covariates (covTableRed)
@@ -26,7 +25,6 @@ generatePopGrowthPredictions <- function(covTable,
     # expit <- function (x) 1/(1 + exp(-x))
     # logit <- log(µ/(1−µ))
     # logit <- exp(x)/(1+exp(x))
-    
     int <- coeffTable[, which(colnames(coeffTable) %in% c("Intercept", 
                                                           "intercept"))]
 
@@ -65,9 +63,10 @@ generatePopGrowthPredictions <- function(covTable,
     }
   }
   
-  resultDT <- data.table(polygonsAreas,
+  resultDT <- data.table(Herd = covTable[["polygon"]],
                          average = predicted, 
-                         stdErr = predictedSD)
+                         stdErr = predictedSD,
+                         area = covTable[["area"]])
   toc()
   return(resultDT)
 }
