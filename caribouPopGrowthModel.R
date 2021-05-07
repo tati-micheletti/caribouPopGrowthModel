@@ -16,7 +16,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
-  reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns", "tictoc",
+  reqdPkgs = list("data.table", "ggplot2", "sf", "PredictiveEcology/usefulFuns", "tictoc",
                   "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc"),
   parameters = rbind(
     defineParameter("predictLastYear", "logical", TRUE, NA, NA, 
@@ -231,6 +231,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     },
     gettingData = {
       if (!P(sim)$.fireLayerListProvided){
+        message("Creating fireLayerList for ", time(sim))
         # sim$fireLayerList: a list of years of simulation with one raster composing
         #                    the most recent fires, namely (currentYear-recoveryTime):currentYear
         sim$fireLayerList[[paste0("Year", time(sim))]] <- composeFireRaster(historicalFires = sim$historicalFires,
@@ -339,6 +340,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
   
   if (suppliedElsewhere("fireLayerList", sim)){
+    message(crayon::green("fireLayerList detected. The module will skip creating it."))
     params(sim)[[currentModule(sim)]]$.fireLayerListProvided <- TRUE
     }
   
