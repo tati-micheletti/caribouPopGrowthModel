@@ -66,9 +66,10 @@ defineModule(sim, list(
                                   "future does NOT yet supports 'multicore' plan in",
                                   " RStudio. If parallelizing is important, please ",
                                   "consider running this module in R Gui")),
-    # defineParameter(name = "Type", class = "character", # DEPRECATED
-    #                 default = "National", min = NA, max = NA, 
-    #                 desc = paste0("Only option available for now")),
+    defineParameter(name = ".fireLayerListProvided", class = "logical",
+                    default = FALSE, min = NA, max = NA,
+                    desc = paste0("Do not change this. This parameter is ",
+                                  "automatically changed based on provided inputs")),
     defineParameter(name = "femaleSurvivalModelNumber", class = "character", 
                     default = "M1", min = NA, max = NA, 
                     desc = paste0("Which female survival model should be used for the simulations?",
@@ -123,7 +124,14 @@ defineModule(sim, list(
                                "6. Value: value of the coefficient",
                                "7. StdErr: Standard error of the coefficient",
                                "rows are different values"),
-                 sourceURL = "https://drive.google.com/file/d/1tl0tcvtWVBYXJ5LXS71VmI6HPK7iSkly/view?usp=sharing")
+                 sourceURL = "https://drive.google.com/file/d/1tl0tcvtWVBYXJ5LXS71VmI6HPK7iSkly/view?usp=sharing"),
+    expectsInput(objectName = "fireLayerList", objectClass = "list", 
+                  desc = paste0("List of fires for each year, from the ",
+                                "(currentYear-recoveryTime):currentYear",
+                                "This will include historical years when available",
+                                " topped-up with simulated fire going forward in future",
+                                "If not provided, will be automatically created,",
+                                "and this process demands at least 32GB of RAM"))
   ), 
   outputObjects = bindrows(
     createsOutput(objectName = "predictedCaribou", objectClass = "list", 
@@ -174,7 +182,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       # }
       
       sim$predictedCaribou <- list()
-      sim$fireLayer <- list()
+      if (!P(sim)$.fireLayerListProvided)
+        sim$fireLayerList <- list()
 
       # schedule future event(s)
       sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "makingModel")
@@ -221,16 +230,18 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       names(sim$femaleSurvivalModel) <- names(sim$femaleSurvivalModelDT)
     },
     gettingData = {
-      # sim$fireLayerList: a list of years of simulation with one raster composing
-      #                    the most recent fires, namely (currentYear-recoveryTime):currentYear
-      sim$fireLayerList[[paste0("Year", time(sim))]] <- composeFireRaster(historicalFires = sim$historicalFires,
-                                         thisYearsFires = sim$rstCurrentBurnList,
-                                         studyArea = sim$studyArea,
-                                         recoveryTime = P(sim)$recoveryTime,
-                                         currentTime = time(sim),
-                                         pathData = dataPath(sim), # To compare to current time. First time needs 
-                                         # to be different as we are creating layers, not updating them
-                                         rasterToMatch = sim$rasterToMatch)
+      if (!P(sim)$.fireLayerListProvided){
+        # sim$fireLayerList: a list of years of simulation with one raster composing
+        #                    the most recent fires, namely (currentYear-recoveryTime):currentYear
+        sim$fireLayerList[[paste0("Year", time(sim))]] <- composeFireRaster(historicalFires = sim$historicalFires,
+                                                                            thisYearsFires = sim$rstCurrentBurnList,
+                                                                            studyArea = sim$studyArea,
+                                                                            recoveryTime = P(sim)$recoveryTime,
+                                                                            currentTime = time(sim),
+                                                                            pathData = dataPath(sim), # To compare to current time. First time needs 
+                                                                            # to be different as we are creating layers, not updating them
+                                                                            rasterToMatch = sim$rasterToMatch)
+      }
       # Assertion for changes in rasterToMatch
       if (ncell(sim$rasterToMatch) != ncell(sim$fireLayerList[[paste0("Year", time(sim))]]))
         stop("The number of cells in the RTM does not match the number of cells in the fireLayer. ",
@@ -326,7 +337,11 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   # params(sim)[[currentModule(sim)]]$.useDummyData <- FALSE
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
-
+  
+  if (suppliedElsewhere("fireLayerList", sim)){
+    params(sim)[[currentModule(sim)]]$.fireLayerListProvided <- TRUE
+    }
+  
   if (!suppliedElsewhere("populationGrowthTable", sim)){
     sim$populationGrowthTable <- prepInputs(targetFile = "populationGrowthTable.csv", 
                                        url = extractURL("populationGrowthTable"),
