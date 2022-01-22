@@ -57,7 +57,8 @@ plotCaribouPopGrowth <- function(startTime,
           return(tb)
         }))
       tableAll <- condTB
-    }
+    } 
+  }
   
   yaxis <- if (timeSpan == "annual") "annualLambda" else "growth"
   yaxisName <- yaxis
