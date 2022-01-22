@@ -17,13 +17,14 @@ defineModule(sim, list(
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
   reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns", "tictoc",
-                  "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc"),
+                  "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc",
+                  "LandSciTech/caribouMetrics"),
   parameters = rbind(
     defineParameter("predictLastYear", "logical", TRUE, NA, NA, 
                     paste0("Should it schedule events for the last year",
                            " of simulation if this is not a multiple of interval?")),
-    defineParameter("polygonsOfInterest", "character", NULL, NA, NA, 
-                    paste0("If results should be presented only for a set of polygons",
+    defineParameter("whichPolysToIgnore", "character", NULL, NA, NA, 
+                    paste0("If results should not be presented for a set of polygons",
                            " these should be expressed here")),
     defineParameter(".useCache", "logical", FALSE, NA, NA, 
                     "Should this entire module be run with caching activated?"),
@@ -66,9 +67,10 @@ defineModule(sim, list(
                                   "future does NOT yet supports 'multicore' plan in",
                                   " RStudio. If parallelizing is important, please ",
                                   "consider running this module in R Gui")),
-    # defineParameter(name = "Type", class = "character", # DEPRECATED
-    #                 default = "National", min = NA, max = NA, 
-    #                 desc = paste0("Only option available for now")),
+    defineParameter(name = "useQuantiles", class = "logic", 
+                    default = TRUE, min = NA, max = NA,
+                    desc = paste0("Should the predictions use quantiles (adding uncertainty from ",
+                                  "beta distribution)?")),
     defineParameter(name = "femaleSurvivalModelNumber", class = "character", 
                     default = "M1", min = NA, max = NA, 
                     desc = paste0("Which female survival model should be used for the simulations?",
@@ -148,6 +150,8 @@ defineModule(sim, list(
                   desc = "List of female survival model equations"),
     createsOutput(objectName = "recruitmentModel", objectClass = "list", 
                   desc = "List of recruitment model equations"),
+    createsOutput(objectName = "demographicCoefficients", objectClass = "list", 
+                  desc = "List of demographic coefficients for both survival and reproduction"),
     createsOutput(objectName = "fireLayerList", objectClass = "list", 
                   desc = paste0("List of fires for each year, from the ",
                                 "(currentYear-recoveryTime):currentYear",
@@ -187,38 +191,49 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     },
     makingModel = {
       # 1. Prepare table based on which models to use
-      message("Building recruitment model tables")
-      # 1.1. recruitmentModelDT: Table with 3 columns: Coefficient, Value, StdErr
-      sim$recruitmentModelDT <- makeDTforPopGrowth(populationGrowthTable = sim$populationGrowthTable, 
-                                                   modelVersion = P(sim)[["recruitmentModelVersion"]],
-                                                   modelNumber = P(sim)[["recruitmentModelNumber"]],
-                                                   responseVariable = "recruitment")
-      message("Building female survival model tables")
-      # 1.2. femaleSurvivalModelDT: Table with 3 columns: Coefficient, Value, StdErr
-      sim$femaleSurvivalModelDT <- makeDTforPopGrowth(populationGrowthTable = sim$populationGrowthTable,
-                                                      modelVersion = P(sim)[["femaleSurvivalModelVersion"]],
-                                                      modelNumber = P(sim)[["femaleSurvivalModelNumber"]],
-                                                      responseVariable = "femaleSurvival")
+      message("Building recruitment model and female survival model tables")
+    
+      devtools::load_all("~/projects/caribouMetrics/")
       
-      # 2. Lapply over the models types (modelVersion, modelNumber, Type combinations) 
-      # to use and run the buildCoefficientsTable()
-      # list (model types) of lists of 2 objects: 
-      #   a) matrix with SD x nBootstrap (coeffTable) 
-      #   b) averages (coeffValues)
-      #   2.1. recruitmentModel
-      sim$recruitmentModel <- lapply(names(sim$recruitmentModelDT), FUN = function(modelType){
-        message(paste0("Building recruitment models for ", modelType))
-        tb <- buildCoefficientsTable(caribouCoefTable = sim$recruitmentModelDT[[modelType]],
-                                     nBootstrap = P(sim)$nBootstrap)
-                                     })
-      names(sim$recruitmentModel) <- names(sim$recruitmentModelDT)
-      # 2.2. femaleSurvivalModel
-      sim$femaleSurvivalModel <- lapply(names(sim$femaleSurvivalModelDT), FUN = function(modelType){
-        message(paste0("Building female survival models for ", modelType))
-        tb <- buildCoefficientsTable(caribouCoefTable = sim$femaleSurvivalModelDT[[modelType]],
-                                     nBootstrap = P(sim)$nBootstrap)
-      })
-      names(sim$femaleSurvivalModel) <- names(sim$femaleSurvivalModelDT)
+      if (!P(sim)$useQuantiles){
+        # 1.1. recruitmentModelDT: Table with 3 columns: Coefficient, Value, StdErr
+        sim$recruitmentModelDT <- makeDTforPopGrowth(populationGrowthTable = sim$populationGrowthTable, 
+                                                     modelVersion = P(sim)[["recruitmentModelVersion"]],
+                                                     modelNumber = P(sim)[["recruitmentModelNumber"]],
+                                                     responseVariable = "recruitment")
+        message("Building female survival model tables")
+        # 1.2. femaleSurvivalModelDT: Table with 3 columns: Coefficient, Value, StdErr
+        sim$femaleSurvivalModelDT <- makeDTforPopGrowth(populationGrowthTable = sim$populationGrowthTable,
+                                                        modelVersion = P(sim)[["femaleSurvivalModelVersion"]],
+                                                        modelNumber = P(sim)[["femaleSurvivalModelNumber"]],
+                                                        responseVariable = "femaleSurvival")
+        
+        # 2. Lapply over the models types (modelVersion, modelNumber, Type combinations) 
+        # to use and run the buildCoefficientsTable()
+        # list (model types) of lists of 2 objects: 
+        #   a) matrix with SD x nBootstrap (coeffTable) 
+        #   b) averages (coeffValues)
+        #   2.1. recruitmentModel
+        sim$recruitmentModel <- lapply(names(sim$recruitmentModelDT), FUN = function(modelType){
+          message(paste0("Building recruitment models for ", modelType))
+          tb <- buildCoefficientsTable(caribouCoefTable = sim$recruitmentModelDT[[modelType]],
+                                       nBootstrap = P(sim)$nBootstrap)
+        })
+        names(sim$recruitmentModel) <- names(sim$recruitmentModelDT)
+        # 2.2. femaleSurvivalModel
+        sim$femaleSurvivalModel <- lapply(names(sim$femaleSurvivalModelDT), FUN = function(modelType){
+          message(paste0("Building female survival models for ", modelType))
+          tb <- buildCoefficientsTable(caribouCoefTable = sim$femaleSurvivalModelDT[[modelType]],
+                                       nBootstrap = P(sim)$nBootstrap)
+        })
+        names(sim$femaleSurvivalModel) <- names(sim$femaleSurvivalModelDT)
+      } else {
+        sim$demographicCoefficients <- caribouMetrics::demographicCoefficients(replicates = P(sim)$nBootstrap,
+                                                                               survivalModelNumber = P(sim)[["femaleSurvivalModelNumber"]], 
+                                                                               modelVersion = P(sim)[["femaleSurvivalModelVersion"]], 
+                                                                               recruitmentModelNumber = P(sim)[["recruitmentModelNumber"]])
+      }
+      
     },
     gettingData = {
       # sim$fireLayerList: a list of years of simulation with one raster composing
@@ -266,19 +281,35 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                                                    rasterToMatch = sim$rasterToMatch,
                                                                    destinationPath = dataPath(sim))
       }
-      if (!all(is.na(sim$disturbances[[paste0("Year", time(sim))]])))
-        sim$predictedCaribou[[paste0("Year", time(sim))]] <- populationGrowthModel(
-                                                      femaleSurvivalModel = sim$femaleSurvivalModel,
-                                                      recruitmentModel = sim$recruitmentModel,
-                                                      disturbances = sim$disturbances[[paste0("Year", time(sim))]],
-                                                      currentTime = time(sim),
-                                                      popModel = P(sim)$popModel)
-      message(paste0("Caribou growth information for ", time(sim)))
       
-      summaryToPrint <- merge(sim$predictedCaribou[[paste0("Year", time(sim))]],
+      if (!all(is.na(sim$disturbances[[paste0("Year", time(sim))]]))){
+         if (!P(sim)$useQuantiles){
+           sim$predictedCaribou[[paste0("Year", time(sim))]] <- populationGrowthModel(
+             femaleSurvivalModel = sim$femaleSurvivalModel,
+             recruitmentModel = sim$recruitmentModel,
+             disturbances = sim$disturbances[[paste0("Year", time(sim))]],
+             currentTime = time(sim),
+             popModel = P(sim)$popModel,
+             outputDir = dataPath(sim),
+             useQuantiles = P(sim)$useQuantiles)
+           
+         } else {
+           sim$predictedCaribou[[paste0("Year", time(sim))]] <- populationGrowthModel(
+             femaleSurvivalModel = sim$demographicCoefficients$coefSamples_Survival,
+             recruitmentModel = sim$demographicCoefficients$coefSamples_Recruitment,
+             disturbances = sim$disturbances[[paste0("Year", time(sim))]],
+             outputDir = dataPath(sim),
+             currentTime = time(sim),
+             popModel = P(sim)$popModel,
+             useQuantiles = P(sim)$useQuantiles)
+         }
+      }
+      message(paste0("Caribou growth information for ", time(sim)))
+      names(sim$predictedCaribou[[paste0("Year", time(sim))]])[names(sim$predictedCaribou[[paste0("Year", time(sim))]]) == "polygon"] <- "Herd"
+      summaryToPrint <- unique(merge(sim$predictedCaribou[[paste0("Year", time(sim))]],
             digestDisturbances(disturbances = sim$disturbances[[paste0("Year", time(sim))]], 
                                Year = time(sim)), 
-            by = c("Herd", "area"))
+            by = c("Herd", "area")))
       print(summaryToPrint[, c("Herd", "average_femaleSurvival", "average_recruitment",
                                "annualLambda", "Anthro", "fire_prop_dist", "Fire", "Total_dist",
                                "fire_excl_anthro")])
@@ -308,7 +339,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                                                climateModel = P(sim)$climateModel,
                                                                predictedCaribou = sim$predictedCaribou,
                                                                yearSimulationStarts = start(sim),
-                                                               whichPolys = P(sim)$polygonsOfInterest,
+                                                               whichPolysToIgnore = P(sim)$whichPolysToIgnore,
                                                                outputFolder = Paths$outputPath)
     },
     warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],

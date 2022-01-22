@@ -24,6 +24,7 @@ plotCaribouPopGrowth <- function(startTime,
     message(crayon::red("climateModel is NULL, default is 'CCSM4'"))
     climateModel <- "CCSM4"
   }
+
   if (!is.null(resultsMainFolder)){
     allcombs <- data.table(expand.grid(climateModel, reps))
     allcombs[, comb := paste0(Var1, "_",Var2)]
@@ -44,8 +45,9 @@ plotCaribouPopGrowth <- function(startTime,
       }))
       return(addedTB)
     }))
-    tableAll <- predictedCaribou 
   }
+  
+  tableAll <- predictedCaribou 
   
   if (is(tableAll, "list")){ # If this is a list (i.e. if the results are coming from the module), collapse into a data.table
       condTB <- rbindlist(lapply(names(tableAll), function(YYYY){
