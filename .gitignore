@@ -46,3 +46,4 @@ outputs/
 outputs/*.*
 ./cache/
 cache/
+data/
