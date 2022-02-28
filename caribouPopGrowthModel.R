@@ -17,8 +17,8 @@ defineModule(sim, list(
   citation = list("citation.bib"),
   documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
   reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns", "tictoc",
-                  "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc",
-                  "tati-micheletti/caribouMetrics@dde5823d097f8362f279d7bdc5f4bf597799a898"),
+                  "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc"),
+  # "tati-micheletti/caribouMetrics@dde5823d097f8362f279d7bdc5f4bf597799a898" currently not working but installed
   parameters = rbind(
     defineParameter("predictLastYear", "logical", TRUE, NA, NA,
                     paste0("Should it schedule events for the last year",
@@ -85,35 +85,39 @@ defineModule(sim, list(
                                   "Models available are M3, M7 and M8 (ECCC); M1:M5 (Johnson)"))
   ),
   inputObjects = bindrows(
+    expectsInput(objectName = "shortProvinceName", objectClass = "character",
+                 desc = paste0("Short 2 letter name of the province(s) where",
+                               " the simulation is being run, i.e., c('AB', 'SK')"),
+                 sourceURL = NA),
     expectsInput(objectName = "waterRaster", objectClass = "RasterLayer",
                  desc = "Wetland raster for excluding water from anthropogenic layer",
                  sourceURL = NA),
     expectsInput(objectName = "currentPop", objectClass = "numeric",
                  desc = paste0("Caribou population size in the study area.",
-                               "Is updated every time step if not using lambda models"),
+                               "Is updated every time step if not using lambda models",
+                               "Not currently implemented."),
                  sourceURL = NA),
     expectsInput(objectName = "pixelGroupMap", objectClass = "RasterLayer",
                  desc = paste0("Map of groups of pixels that share the same info from cohortData (sp, age, biomass, etc).",
-                               " Should at some point be genrated by the fire model (i.e. scfmSpread)")),
+                               " Should at some point be genrated by the fire model (i.e. scfmSpread)",
+                               "Only need to be supplied if dummy data should be used as",
+                               " models here are not linked to vegetation, only ",
+                               "fire and anthropogenic disturbance")),
     expectsInput(objectName = "cohortData", objectClass = "data.table",
-                 desc = paste0("data.table with information by pixel group of sp, age, biomass, etc")),
+                 desc = paste0("data.table with information by pixel group of sp, age, biomass, etc",
+                               "Only need to be supplied if dummy data should be used",
+                               " as models here are not linked to vegetation, only ",
+                               "fire and anthropogenic disturbance")),
     expectsInput(objectName = "bufferedAnthropogenicDisturbance500m", objectClass = "RasterLayer",
                  desc = paste0("Layer that maps the % of anthropogenic disturbance in a 500m buffer.",
                                "This layer is static if no modules are forecasting anthropogenic disturbances")),
-    expectsInput(objectName = "caribouCoefTable", objectClass = "data.table",
-                 desc = "Published caribou coefficients",
-                 sourceURL = NA),
     expectsInput(objectName = "listSACaribou", objectClass = "list",
                   desc = paste0("List of caribou areas to summarize predictions for",
                                 "Defaults to shapefile of polygons in the NWT")),
     expectsInput(objectName = "historicalFires", objectClass = "SpatialPolygonsDataFrame",
-                 desc = paste0("All fires in a year are identified by the year ",
-                               " (i.e. sam ID for all). This layer was built by",
-                               " James Hodson (GNWT) for NWT)"),
+                 desc = paste0("All fires in a year are identified by the year",
+                               " (i.e. same ID for all, 'fireYear')."),
                  sourceURL = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7"),
-    expectsInput(objectName = "flammableMap", objectClass = "RasterLayer",
-                 desc = paste0("Flammable map to mask historical and current fireLayer ",
-                               "to flammable areas")),
     expectsInput(objectName = "rstCurrentBurnList", objectClass = "list",
                  desc = paste0("List of fires by year (raster format). These ",
                                "layers are produced by simulation.",
@@ -136,7 +140,13 @@ defineModule(sim, list(
                                 "This will include historical years when available",
                                 " topped-up with simulated fire going forward in future",
                                 "If not provided, will be automatically created,",
-                                "and this process demands at least 32GB of RAM"))
+                                "and this process demands at least 32GB of RAM")),
+    expectsInput(objectName = "studyArea", objectClass = "SpatialPolygonDataFrame",
+                 desc = "Study area for the prediction. Currently only available for NWT",
+                 sourceURL = "https://drive.google.com/open?id=1P4grDYDffVyVXvMjM-RwzpuH1deZuvL3"),
+    expectsInput(objectName = "rasterToMatch", objectClass = "RasterLayer",
+                 desc = "All spatial outputs will be reprojected and resampled to it",
+                 sourceURL = "https://drive.google.com/open?id=1P4grDYDffVyVXvMjM-RwzpuH1deZuvL3")
   ),
   outputObjects = bindrows(
     createsOutput(objectName = "predictedCaribou", objectClass = "list",
@@ -204,9 +214,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     makingModel = {
       # 1. Prepare table based on which models to use
       message("Building recruitment model and female survival model tables")
-
-      devtools::load_all("~/projects/caribouMetrics/")
-
       if (!P(sim)$useQuantiles){
         # 1.1. recruitmentModelDT: Table with 3 columns: Coefficient, Value, StdErr
         sim$recruitmentModelDT <- makeDTforPopGrowth(populationGrowthTable = sim$populationGrowthTable,
@@ -401,20 +408,47 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                     overwrite = TRUE,
                                     omitArgs = c("destinationPath", "overwrite", "filename2"))
   }
+  if (!suppliedElsewhere(object = "shortProvinceName", sim = sim)){
+    sim$shortProvinceName <- strsplit(x = runName, split = "_")[[1]][1]
+    message("shortProvinceName was not supplied. Trying to guess from runName: ",
+            paste(sim$shortProvinceName, collapse = ", "),
+            ". If this is not correct, please provide the correct object",
+            " 'shortProvinceName'")
+  }
   if (!suppliedElsewhere(object = "listSACaribou", sim = sim)){
+    # Shapefile: Boreal_Caribou_Range_Boundaries_AsOfJune62012.shp
+    # Anthropogenic disturbance within caribou ranges
+    url <- "https://ec.gc.ca/data_donnees/STB-DGST/001/BorealCaribouDisturbanceShapefiles_Updated2012.zip"
+    SHP <- "Boreal_Caribou_Range_Boundaries_AsOfJune62012"
+    herds <- prepInputs(url = url,
+                        destinationPath = checkPath(file.path(dataPath(sim), "anthropogenicLayers"),
+                                                    create = TRUE),
+                        archive = "BorealCaribouDisturbanceShapefiles_Updated2012.zip",
+                        alsoExtract = paste0(SHP, c(".dbf", ".shx",
+                                                    ".sbn", ".sbx",
+                                                    ".shp.xml", ".prj")),
+                        targetFile = paste0(SHP, ".shp"))
 
-    caribouArea1 <- Cache(prepInputs, url = "https://drive.google.com/open?id=1Vqny_ZMoksAjji4upnr3OiJl2laGeBGV",
-                                   targetFile = "NT1_BOCA_spatial_units_for_landscape_projections.shp",
-                                   destinationPath = dataPath(sim),
-                          filename2 = "caribouBOCAunits")
+    # Need to postprocess
+    herds <- st_as_sf(herds)
+    herds  <- st_set_crs(x = herds,
+                         value = paste0("+proj=aea +lat_1=50 +lat_2=70 +lat_0=40",
+                                        " +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 ",
+                                        "+datum=NAD83 +units=m no_defs"))
+    herds <- as_Spatial(herds)
+    herds <- projectInputs(x = herds, targetCRS = crs(studyArea))
+    herds <- postProcess(x = herds,
+                        studyArea = sim$studyArea) # ATTENTION: If passing RTM,
+                                                   # it will grid the shp
+    # remove any province leftovers from GIS operations. Due to the
+    # terrible original projection (aea), we get weird little polygons from other
+    # provinces at borders sometimes
+    provsToKeep <- which(herds[["PROV_TERR"]] %in% unique(herds[["PROV_TERR"]][
+      grepl(pattern = sim$shortProvinceName, x = herds[["PROV_TERR"]])]))
+    # subset
+    herds <- herds[provsToKeep, ]
 
-    caribouArea2 <- Cache(prepInputs, url = "https://drive.google.com/open?id=1Qbt2pOvC8lGg25zhfMWcc3p6q3fZtBtO",
-                                   targetFile = "NWT_Regions_2015_LCs_DC_SS_combined_NT1_clip_inc_Yukon.shp",
-                                   destinationPath = dataPath(sim),
-                          filename2 = "caribouNT1herds")
-
-    sim$listSACaribou = list(caribouArea1, caribouArea2)
-    names(sim$listSACaribou) <- c("BOCAunits", "NT1herds")
+    sim$listSACaribou <- list(herds = herds)
   }
 
   if (!suppliedElsewhere("currentPop", sim) &
@@ -446,37 +480,52 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
   }
 
   if (!suppliedElsewhere("bufferedAnthropogenicDisturbance500m", sim)){
-    bufferedAnthropogenicDisturbance500m <- Cache(prepInputs, targetFile = "buffered500mDisturbancesUnified_NT1_BCR6.shp",
-                                                  archive = "buffered500mDisturbancesUnified_NT1_BCR6.zip",
-                                                  alsoExtract = "similar",
-                                                  url = "https://drive.google.com/file/d/1yz39dGW4XMJk5ox6TuVUOMrU4q3mhfhU/view?usp=sharing",
-                                                  destinationPath = Paths$inputPath,
-                                                  studyArea = sim$studyArea,
-                                                  rasterToMatch = sim$rasterToMatch,
-                                                  userTags = c(stepCacheTag,
-                                                               "step:prepAnthropogenicDistLayer", "outFun:Cache"))
-    bufferedAnthropogenicDisturbance500mSF <- sf::st_as_sf(bufferedAnthropogenicDisturbance500m)
-    bufferedAnthropogenicDisturbance500mSF$fieldSF <- 1
-    bufferedAnthropogenicDisturbance500m <- fasterize::fasterize(sf = bufferedAnthropogenicDisturbance500mSF,
-                                                                 raster = sim$rasterToMatch, field = "fieldSF",
-                                                                 background = 0)
-    buffAnthroDist500m <- Cache(postProcess, x = bufferedAnthropogenicDisturbance500m,
-                                destinationPath = Paths[["inputPath"]],
-                                studyArea = sim$studyArea,
-                                rasterToMatch = sim$rasterToMatch,
-                                userTags = c(stepCacheTag,
-                                             "step:maskAnthropogenicDistLayer", "outFun:Cache"))
-    sim$bufferedAnthropogenicDisturbance500m <- buffAnthroDist500m
-  }
+    # OBS: The file used for caribou herds also has all fire and athropogenic disturbance in separated layers
+    # I probably shouldn't use the fire because I can't exclude the "older".
+    # Atikakibernes_Anthropogenic_and_40YrFire_Disturbance_Footprint_Updated2012.shp
+    # I just build new ones.
+
+    # But I can definitely use the anthropo because it is anyway
+    # static and up to 2011/2012, which is when our sims start. And are already buffered!
+    # PATTERN: HERD_Anthropogenic_Disturbance_Footprint_Updated2012.shp
+
+    # ALTERNATIVE DATA SOURCES
+    # Anthropogenic disturbances across the Boreal
+    # url2 <- "https://www.ec.gc.ca/data_donnees/STB-DGST/003/Boreal-ecosystem-anthropogenic-disturbance-vector-data-2008-2010.zip"
+    # Anthropogenic disturbances across the Boreal digested?! No idea what is different from previous
+    # url3 <- "https://ec.gc.ca/data_donnees/STB-DGST/002/BEAD_DATALAYERS.zip"
+    # Make this generic based on the study area and caribou herds file
+    print("Preparing anthropogenic disturbance layer")
+    sim$bufferedAnthropogenicDisturbance500m <- Cache(getAnthropoDisturbanceForBorealCaribou, studyArea = sim$studyArea,
+                                                     rasterToMatch = sim$rasterToMatch,
+                                                     pathData = dataPath(sim),
+                                                     userTags = c(stepCacheTag,
+                                                                  "step:prepAnthropogenicDistLayer",
+                                                                  "outFun:Cache"))
+
+
+    }
   if (!suppliedElsewhere("historicalFires", sim)){
-    sim$historicalFires <- prepInputs(url = paste0("https://drive.google.com/",
-                                                   "file/d/1fSsgP1VUgQbhq4GpCE",
-                                                   "PZh2yVjh5SN2bv/view?usp=",
-                                                   "sharing"),
-                                      targetFile = "historicalFires.qs",
-                                      destinationPath = Paths[["inputPath"]],
-                                      overwrite = TRUE,
-                                      fun = "qs::qread")
+
+    historicalFires <- Cache(prepInputs, url = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7",
+                             alsoExtract = "similar",
+                             destinationPath = Paths[["inputPath"]],
+                             studyArea = sim$studyArea,
+                             userTags = c("objectName:historicalFires",
+                                          "extension:BCR6_NWT",
+                                          stepCacheTag, "outFun:Cache"))
+    # simplifying
+    historicalFiresS <- historicalFires[, names(historicalFires) %in% c("YEAR", "DECADE")]
+    historicalFiresDT <- data.table(historicalFiresS@data)
+    historicalFiresDT[, decadeYear := 5+(as.numeric(unlist(lapply(strsplit(historicalFiresDT$DECADE, split = "-"), `[[`, 1))))]
+    historicalFiresDT[, fireYear := ifelse(YEAR == -9999, decadeYear, YEAR)]
+    historicalFiresS$fireYear <- historicalFiresDT$fireYear
+    historicalFires <- historicalFiresS[, "fireYear"]
+    historicalFiresReproj <- projectInputs(historicalFires, targetCRS = as.character(crs(studyArea)))
+
+    # Discard fires with more than 60 from starting time
+    oldestFireYear <- time(sim)-P(sim)$recoveryTime
+    sim$historicalFires <- historicalFiresReproj[historicalFiresReproj$fireYear >= oldestFireYear,]
   }
   if (!suppliedElsewhere("rstCurrentBurnList", sim)){
     warning("rstCurrentBurnList needs to be provided and was not found in the simList.
