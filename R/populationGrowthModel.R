@@ -6,7 +6,7 @@ populationGrowthModel <-  function(femaleSurvivalModel,
                                    outputDir,
                                    useQuantiles = TRUE
                                    ){
-  
+
   message(paste0("Forecasting caribou population growth for ", currentTime,"..."))
   covTable <- rbindlist(lapply(names(disturbances), function(shpfls){
     shpTable <- rbindlist(lapply(names(disturbances[[shpfls]]), function(pols){
@@ -19,7 +19,6 @@ populationGrowthModel <-  function(femaleSurvivalModel,
   femaleSurvivalPredictions <- rbindlist(lapply(X = names(femaleSurvivalModel),
                                       FUN = function(modelType) {
 if (useQuantiles){
-  browser()
   responseList <- sampleRates(covTable = covTable,
                               coefSample = femaleSurvivalModel[[modelType]][["coefSamples"]],
                               coefValues = femaleSurvivalModel[[modelType]][["coefValues"]],
@@ -40,7 +39,7 @@ if (useQuantiles){
     responseList[, c("modelType", "model") := list(modelType, "femaleSurvival")]
     return(responseList)
   }))
-  recruitmentPredictions <- rbindlist(lapply(X = names(recruitmentModel), 
+  recruitmentPredictions <- rbindlist(lapply(X = names(recruitmentModel),
                                                 FUN = function(modelType) {
 if (useQuantiles){
   responseList <- sampleRates(covTable = covTable,
@@ -51,9 +50,9 @@ if (useQuantiles){
                               ignorePrecision = FALSE,
                               outputDir = outputDir,
                               returnSample = FALSE,
-                              useQuantiles = FALSE)  
+                              useQuantiles = FALSE)
 } else {
-  responseList <- generatePopGrowthPredictions(covTable = covTable, 
+  responseList <- generatePopGrowthPredictions(covTable = covTable,
                                                coeffTable = recruitmentModel[[modelType]][["coeffTable"]],
                                                coeffValues = recruitmentModel[[modelType]][["coeffValues"]],
                                                modelType =  modelType,
@@ -69,32 +68,32 @@ if (useQuantiles){
                               recruitmentModel = names(recruitmentModel)))
   if (useQuantiles){
     DT <- rbindlist(lapply(1:NROW(combinations), function(index){
-      
+
       femSurvMod <- unique(combinations[[index, "femaleSurvivalModel"]])
       recrMod <- unique(combinations[[index, "recruitmentModel"]])
 
       SadF <- femaleSurvivalPredictions[modelType == femSurvMod, "average"]
       SadFmin <- femaleSurvivalPredictions[modelType == femSurvMod, "PIlow"]
       SadFmax <- femaleSurvivalPredictions[modelType == femSurvMod, "PIhigh"]
-      
+
       recr <- recruitmentPredictions[modelType == recrMod, "average"]
       recrmin <- recruitmentPredictions[modelType == recrMod, "PIlow"]
       recrmax <- recruitmentPredictions[modelType == recrMod, "PIhigh"]
-      
+
       testthat::expect_true(NROW(SadF) == NROW(recr))
-      
+
       growth <- do.call(what = popModel, args = alist(SadF = SadF,
                                                       recr = recr))
       growthMin <-  do.call(what = popModel, args = alist(SadF = SadFmin,
                                                           recr = recrmin))
       growthMax <-  do.call(what = popModel, args = alist(SadF = SadFmax,
                                                           recr = recrmax))
-      
-      # Melt DT to put recruitment and femaleSurvival results in the same table 
+
+      # Melt DT to put recruitment and femaleSurvival results in the same table
       DTbind <- rbind(recruitmentPredictions[modelType == recrMod,],
                       femaleSurvivalPredictions[modelType == femSurvMod,])
       DTbind <- dcast(DTbind, polygon + area ~ model, value.var = c("average", "stdErr"))
-      growthDT <- data.table(annualLambda = growth[["average"]], 
+      growthDT <- data.table(annualLambda = growth[["average"]],
                              annualLambdaMax = growthMax[[1]],
                              annualLambdaMin = growthMin[[1]],
                              polygon = femaleSurvivalPredictions$polygon)
@@ -107,29 +106,29 @@ if (useQuantiles){
       CI <- function(SD) qnorm(0.975)*SD
       femSurvMod <- unique(combinations[[index, "femaleSurvivalModel"]])
       recrMod <- unique(combinations[[index, "recruitmentModel"]])
-      
+
       SadF <- femaleSurvivalPredictions[modelType == femSurvMod, "average"]
       SadFmin <- SadF - CI(femaleSurvivalPredictions[modelType == femSurvMod, "stdErr"])
       SadFmax <- SadF + CI(femaleSurvivalPredictions[modelType == femSurvMod, "stdErr"])
-      
+
       recr <- recruitmentPredictions[modelType == recrMod, "average"]
       recrmin <- recr - CI(recruitmentPredictions[modelType == recrMod, "stdErr"])
       recrmax <- recr + CI(recruitmentPredictions[modelType == recrMod, "stdErr"])
-      
+
       testthat::expect_true(NROW(SadF) == NROW(recr))
-      
+
       growth <- do.call(what = popModel, args = alist(SadF = SadF,
                                                       recr = recr))
       growthMin <-  do.call(what = popModel, args = alist(SadF = SadFmin,
                                                           recr = recrmin))
       growthMax <-  do.call(what = popModel, args = alist(SadF = SadFmax,
                                                           recr = recrmax))
-      
-      # Melt DT to put recruitment and femaleSurvival results in the same table 
+
+      # Melt DT to put recruitment and femaleSurvival results in the same table
       DTbind <- rbind(recruitmentPredictions[modelType == recrMod,],
                       femaleSurvivalPredictions[modelType == femSurvMod,])
       DTbind <- dcast(DTbind, polygon + area ~ model, value.var = c("average", "stdErr"))
-      growthDT <- data.table(annualLambda = growth[["average"]], 
+      growthDT <- data.table(annualLambda = growth[["average"]],
                              annualLambdaMax = growthMax[["average"]],
                              annualLambdaMin = growthMin[["average"]],
                              polygon = femaleSurvivalPredictions$polygon)
@@ -138,6 +137,6 @@ if (useQuantiles){
       return(DTbind)
     }))
   }
-    
+
   return(DT)
 }

@@ -10,16 +10,16 @@ plotCaribouPopGrowth <- function(startTime,
                                  whichPolysToIgnore = NULL, # Optional to ensure only specific polygons to be plotted
                                  timeSpan = "annual") # Optional = "timeStep" (normally every 10y)
 {
-  
+
   library("Require")
   Require("data.table")
   Require("ggplot2")
-  if (any(all(is.null(resultsMainFolder), 
+  if (any(all(is.null(resultsMainFolder),
               is.null(predictedCaribou)),
-          all(!is.null(resultsMainFolder), 
+          all(!is.null(resultsMainFolder),
               !is.null(predictedCaribou))))
     stop("Please provide either predictedCaribou or resultsMainFolder")
-  
+
   if (is.null(climateModel)){
     message(crayon::red("climateModel is NULL, default is 'CCSM4'"))
     climateModel <- "CCSM4"
@@ -29,26 +29,26 @@ plotCaribouPopGrowth <- function(startTime,
     allcombs <- data.table(expand.grid(climateModel, reps))
     allcombs[, comb := paste0(Var1, "_",Var2)]
     pth <- file.path(resultsMainFolder, allcombs[["comb"]])
-    
+
     predictedCaribou <- rbindlist(lapply(seq_along(pth), function(filePathIndex){
-      tb <- readRDS(list.files(path = pth[filePathIndex], 
-                               pattern = paste0("predictedCaribou_year", currentTime), 
+      tb <- readRDS(list.files(path = pth[filePathIndex],
+                               pattern = paste0("predictedCaribou_year", currentTime),
                                full.names = TRUE, recursive = TRUE))
       addedTB <- rbindlist(lapply(names(tb), function(years){
         TB <- tb[[years]]
         climMod <- strsplit(basename(pth[filePathIndex]), "_")[[1]][1]
         replic <- strsplit(basename(pth[filePathIndex]), "_")[[1]][2]
-        TB[, c("climateModel", "Replicate", "Year") := list(climMod, 
-                                                            replic, 
+        TB[, c("climateModel", "Replicate", "Year") := list(climMod,
+                                                            replic,
                                                             usefulFuns::substrBoth(years, 4, T))]
         return(TB)
       }))
       return(addedTB)
     }))
   }
-  
-  tableAll <- predictedCaribou 
-  
+
+  tableAll <- predictedCaribou
+
   if (is(tableAll, "list")){ # If this is a list (i.e. if the results are coming from the module), collapse into a data.table
       condTB <- rbindlist(lapply(names(tableAll), function(YYYY){
           y <- as.numeric(strsplit(YYYY, "Year")[[1]][2])
@@ -57,55 +57,54 @@ plotCaribouPopGrowth <- function(startTime,
           return(tb)
         }))
       tableAll <- condTB
-    } 
-  }
-  
+    }
+
   yaxis <- if (timeSpan == "annual") "annualLambda" else "growth"
   yaxisName <- yaxis
-  
-  tableAll[, minRib := min(get(paste0(yaxis, "Min"))), by = c("Year", "Herd", 
+
+  tableAll[, minRib := min(get(paste0(yaxis, "Min"))), by = c("Year", "Herd",
                                                               "climateModel", "femSurvMod_recrMod")]
-  tableAll[, maxRib := max(get(paste0(yaxis, "Max"))), by = c("Year", "Herd", 
+  tableAll[, maxRib := max(get(paste0(yaxis, "Max"))), by = c("Year", "Herd",
                                                               "climateModel", "femSurvMod_recrMod")]
-  tableAll[, paste0("average", yaxis) := mean(get(yaxis)), by = c("Year", "Herd", "climateModel", 
+  tableAll[, paste0("average", yaxis) := mean(get(yaxis)), by = c("Year", "Herd", "climateModel",
                                                                   "femSurvMod_recrMod")]
-  
+
   if (!is.null(whichPolysToIgnore)){
     tableAll <- tableAll[!Herd %in% whichPolysToIgnore, ]
   }
-  
-  yrReady <- lapply(X = unique(tableAll[["area"]]), 
+
+  yrReady <- lapply(X = unique(tableAll[["area"]]),
                     FUN = function(shp){
-                      polyReady <- lapply(X = unique(tableAll[area == shp, femSurvMod_recrMod]), 
+                      polyReady <- lapply(X = unique(tableAll[area == shp, femSurvMod_recrMod]),
                                           FUN = function(mod){
-                                            message(paste0("Plotting caribou population growth for ", shp, 
+                                            message(paste0("Plotting caribou population growth for ", shp,
                                                            " for ", mod))
                                             DT <- tableAll[area == shp & femSurvMod_recrMod == mod, ]
                                             survMod <- strsplit(strsplit(mod, "::")[[1]][1], "_National")[[1]][1]
                                             recMod <- strsplit(strsplit(mod, "::")[[1]][2], "_National")[[1]][1]
-                                            
+
                                             tryCatch(quickPlot::clearPlot(), error = function(e){
                                               message(crayon::red("quickPlot::clearPlot() failed"))
                                             })
                                             if (unique(DT[["area"]]) == "metaHeards"){
                                               DT[Herd == "Dehcho North_v2", Herd := "Dehcho North"]
                                               DT[Herd == "Dehcho South_v2", Herd := "Dehcho South"]
-                                              DT[, Herd := factor(Herd, 
-                                                                  levels = c("GSA North", "GSA South", 
-                                                                             "Dehcho North", "Dehcho South", 
+                                              DT[, Herd := factor(Herd,
+                                                                  levels = c("GSA North", "GSA South",
+                                                                             "Dehcho North", "Dehcho South",
                                                                              "Hay River Lowlands"))]
                                             }
-                                            
+
                                             popModelPlot <- ggplot2::ggplot(data = DT, aes(x = Year,
-                                                                                           colour = Herd, 
+                                                                                           colour = Herd,
                                                                                            group = climateModel)) +
                                               geom_line(size = 0.9, aes(y = get(paste0("average", yaxis)),
                                                                         group = climateModel,
                                                                         linetype = climateModel)) +
                                               facet_grid(rows = vars(Herd)) +
-                                              geom_hline(yintercept = 1, linetype = "dotted", 
+                                              geom_hline(yintercept = 1, linetype = "dotted",
                                                          color = "grey73", size = 1) +
-                                              geom_ribbon(aes(ymin = minRib, 
+                                              geom_ribbon(aes(ymin = minRib,
                                                               ymax = maxRib,
                                                               group = climateModel,
                                                               fill = Herd), alpha = 0.1, colour = NA) +
@@ -127,13 +126,13 @@ plotCaribouPopGrowth <- function(startTime,
                                                                                          size = 0.5, colour = "grey40",
                                                                                          width = 0.7)
                                             }
-                                            
+
                                             if(currentTime == endTime){
-                                              tryCatch(quickPlot::clearPlot(), 
+                                              tryCatch(quickPlot::clearPlot(),
                                                        error = function(e){
                                                          message(crayon::red("quickPlot::clearPlot() failed"))
                                                        })
-                                              png(file.path(outputFolder, 
+                                              png(file.path(outputFolder,
                                                             paste0("caribou_", shp, "_", paste(climateModel, collapse = "_"),
                                                                    "_", recMod,"_", survMod,
                                                                    ifelse(!is.null(resultsMainFolder), "_reps", ""),
