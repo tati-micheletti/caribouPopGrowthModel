@@ -149,6 +149,11 @@ defineModule(sim, list(
                  sourceURL = "https://drive.google.com/open?id=1P4grDYDffVyVXvMjM-RwzpuH1deZuvL3")
   ),
   outputObjects = bindrows(
+    createsOutput(objectName = ".notRun", objectClass = "logical",
+                  desc = paste0("If the caribou herds/management units do not intersect with ",
+                                "the province boundaries or the herd is not classified ",
+                                "as being administered by the given province, the module ",
+                                "will not be run")),
     createsOutput(objectName = "predictedCaribou", objectClass = "list",
                   desc = paste0("Data.table that contains the total population size ",
                                 "per year, as well as other parameters")),
@@ -202,14 +207,16 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       if (!P(sim)$.fireLayerListProvided)
         sim$fireLayerList <- list()
 
-      # schedule future event(s)
-      sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "makingModel")
-      sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "gettingData")
-      sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribou")
-      sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot", eventPriority = .last())
-      #TODO NOT FULLY IMPLEMENTED. CODE NEEDS REVISION.
-      # if (!P(sim)$popModel %in% c("annualLambda", "timestepLambda"))
-      #   sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
+      if (!isTRUE(sim$.notRun)){
+        # schedule future event(s)
+        sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "makingModel")
+        sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "gettingData")
+        sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "growingCaribou")
+        sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "plot", eventPriority = .last())
+        #TODO NOT FULLY IMPLEMENTED. CODE NEEDS REVISION.
+        # if (!P(sim)$popModel %in% c("annualLambda", "timestepLambda"))
+        #   sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "updatingPopulationSize")
+      }
     },
     makingModel = {
       # 1. Prepare table based on which models to use
@@ -250,7 +257,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         sim$demographicCoefficients <- caribouMetrics::demographicCoefficients(replicates = P(sim)$nBootstrap,
                                                                                survivalModelNumber = P(sim)[["femaleSurvivalModelNumber"]],
                                                                                modelVersion = P(sim)[["femaleSurvivalModelVersion"]],
-                                                                               recruitmentModelNumber = P(sim)[["recruitmentModelNumber"]])
+                                                                               recruitmentModelNumber = P(sim)[["recruitmentModelNumber"]],
+                                                                               populationGrowthTable = caribouMetrics::popGrowthTableJohnsonECCC)
       }
 
     },
@@ -449,6 +457,13 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     herds <- herds[provsToKeep, ]
 
     sim$listSACaribou <- list(herds = herds)
+    if (length(sim$listSACaribou$herds) == 0) {
+      warning(crayon::red(paste0("No caribou herds are available for ",
+                                 sim$studyAreaLongName),
+                          ". The module will not run for this area"),
+              immediate. = TRUE)
+      sim$.notRun <- TRUE
+    }
   }
 
   if (!suppliedElsewhere("currentPop", sim) &
@@ -506,13 +521,12 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
 
     }
   if (!suppliedElsewhere("historicalFires", sim)){
-
     historicalFires <- Cache(prepInputs, url = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7",
                              alsoExtract = "similar",
-                             destinationPath = Paths[["inputPath"]],
+                             destinationPath = dataPath(sim),
                              studyArea = sim$studyArea,
                              userTags = c("objectName:historicalFires",
-                                          "extension:BCR6_NWT",
+                                          paste0("extension:", sim$shortProvinceName),
                                           stepCacheTag, "outFun:Cache"))
     # simplifying
     historicalFiresS <- historicalFires[, names(historicalFires) %in% c("YEAR", "DECADE")]

@@ -1,5 +1,5 @@
 composeFireRaster <- function(currentTime,
-                              pathData, # To compare to current time. First time needs 
+                              pathData, # To compare to current time. First time needs
                               # to be different as we are creating layers, not updating them
                               historicalFires,
                               studyArea,
@@ -7,15 +7,15 @@ composeFireRaster <- function(currentTime,
                               recoveryTime,
                               thisYearsFires){
 
-  firesFilenameRas <- file.path(pathData, paste0("historicalFireRaster_", 
+  firesFilenameRas <- file.path(pathData, paste0("historicalFireRaster_",
                                                  1+(currentTime-recoveryTime),"to",
                                                  currentTime, "_",
                                                  ncell(rasterToMatch),".tif"))
   firesFilenameList <- file.path(pathData, paste0("historicalFireList","_",
                                  ncell(rasterToMatch), ".qs"))
-  
+
   minYear <- 1+(currentTime - recoveryTime)
-  
+
   if (!file.exists(firesFilenameRas)){
     if (!file.exists(firesFilenameList)){
       fireRas <- rasterToMatch
@@ -25,8 +25,8 @@ composeFireRaster <- function(currentTime,
         subst <- historicalFires[historicalFires$fireYear == YYYY, ]
         if (!length(subst) == 0){
           substSF <- sf::st_as_sf(subst)
-          yearFire <- suppressWarnings(fasterize::fasterize(sf = substSF, 
-                                                            raster = rasterToMatch, 
+          yearFire <- suppressWarnings(fasterize::fasterize(sf = substSF,
+                                                            raster = rasterToMatch,
                                                             field = "fireYear"))
           fireRas[yearFire == YYYY] <- YYYY
         }
@@ -45,7 +45,7 @@ composeFireRaster <- function(currentTime,
     }
     # This is the first year. I need to create one historical raster of burns with years as counters
     # Place the maximum year of the list in the pixel
-    
+
     # 1. Exclude the years that are more than the current if any (i.e. if sim starts in 2011)
     # it will exclude the years that burned after that, otherwise we might be overestimating
     # fire later on
@@ -56,8 +56,14 @@ composeFireRaster <- function(currentTime,
       minYearLapply <- minYear
     }
     subThisYears <- raster::stack(lapply(minYearLapply:minCurrTime, function(Y){
-      y <- tsRas[[grep(Y, names(tsRas))]]
-      y[y > 0] <- Y
+      yN <- grep(Y, names(tsRas))
+      if (length(yN) == 0){ # No fires in this specific year, layer doesn't exist
+        y <- tsRas[[1]] # template raster
+        y[!is.na(y)] <- 0 # Make a zeroed fire year layer
+      } else {
+        y <- tsRas[[yN]]
+        y[y > 0] <- Y
+      }
       names(y) <- paste0("Year", Y)
       return(y)
     }))
@@ -85,16 +91,16 @@ composeFireRaster <- function(currentTime,
       return(y)
     }))
     # Add the new years
-    counterRaster <- raster::calc(raster::stack(counterRaster, 
-                                                subThisYears), fun = max, 
+    counterRaster <- raster::calc(raster::stack(counterRaster,
+                                                subThisYears), fun = max,
                                   na.rm = TRUE)
   }
   # Mask counter Raster to RTM map to avoid overestimating caribou later on
-  counterRasterMasked <- maskInputs(counterRaster, 
+  counterRasterMasked <- maskInputs(counterRaster,
                                     studyArea = studyArea,
                                destinationPath = pathData,
                                rasterToMatch = rasterToMatch,
                               maskWithRTM = TRUE)
-  
+
   return(counterRasterMasked)
 }

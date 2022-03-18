@@ -31,7 +31,7 @@ extractDisturbanceFast <- function(shapefileName,
                                    makeAssertions = TRUE,
                                    rasterToMatch,
                                    destinationPath) {
-  
+
   message("Calculating disturbance for ", shapefileName)
   caribouShapefile <- caribouShapefile[[shapefileName]]
 
@@ -76,25 +76,25 @@ extractDisturbanceFast <- function(shapefileName,
 #### NOTE:  ON 26JAN21 CHERYL JOHNSON CONFIRMED THEY DO NOT REMOVE ANYTHING FROM THE LAYERS,
 #### SO WE SHOULD NOT MASK EITHER
     # backgroundWithoutWater <- rasterToMatch
-    # backgroundWithoutWater[waterRaster[] == 1] <- NA 
+    # backgroundWithoutWater[waterRaster[] == 1] <- NA
     # backgroundWithoutWater[!is.na(backgroundWithoutWater)] <- 0
-    
-    # Fix anthropogenic layer that is NA/1 only. Add zeros to all pixels that are water, 
+
+    # Fix anthropogenic layer that is NA/1 only. Add zeros to all pixels that are water,
     # basically (which is where we can't build anything)
     # backgroundWithoutWater[bufferedAnthropogenicDisturbance500m[] == 1] <- 1
     # bufferedAnthropogenicDisturbance500m <- backgroundWithoutWater
     bufferedAnthropogenicDisturbance500m[is.na(rasterToMatch[])] <- NA # REMOVING ONLY OUTSIDE SA
   } else {
-    message(crayon::red("bufferedAnthropogenicDisturbance500m is NULL. 
+    message(crayon::red("bufferedAnthropogenicDisturbance500m is NULL.
                         The prediction will assume anthropogenic disturbances do not exist"))
     bufferedAnthropogenicDisturbance500m[rasterToMatch[] == 1] <- 0
   }
-  
+
   # Extract the caribou shapefile values by fasterizing it. Way faster than raster::extract
   message(crayon::blue("Fasterizing caribou shapefile..."))
   caribouShapefile <- projectInputs(x = caribouShapefile,
                                      targetCRS = crs(rasterToMatch))
-  
+
   caribouShapefileSF <- sf::st_as_sf(caribouShapefile)
   nm <- if (!is.null(caribouShapefile$NAME)){
     "NAME"
@@ -124,7 +124,7 @@ NULL
   polsToRemove <- setdiff(caribouShapefileSF[["ID"]], availableInRas)
   caribouShapefileSF <- caribouShapefileSF[!caribouShapefileSF$ID %in% polsToRemove,]
 
-  ########### START EXTRACTION OF DATA ##################### 
+  ########### START EXTRACTION OF DATA #####################
 
   listExtr <- do.call(what = funToLapply, args = alist(X = caribouShapefileSF[["ID"]],
                                                        FUN = .extractDisturbancePolygon,
