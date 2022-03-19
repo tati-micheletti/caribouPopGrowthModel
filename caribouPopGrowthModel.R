@@ -522,6 +522,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     historicalFires <- Cache(
       prepInputs,
       url = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7/",
+      targetFile = "NBAC_CAN_1986_2017_NFDB_up_to_1985.shp",
       alsoExtract = "similar",
       destinationPath = dPath,
       studyArea = sim$studyArea,
@@ -529,6 +530,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                    paste0("extension:", sim$shortProvinceName),
                    stepCacheTag, "outFun:Cache")
     )
+
     # simplifying
     historicalFiresS <- historicalFires[, names(historicalFires) %in% c("YEAR", "DECADE")]
     historicalFiresDT <- data.table(historicalFiresS@data)
