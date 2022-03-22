@@ -207,7 +207,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       if (!P(sim)$.fireLayerListProvided)
         sim$fireLayerList <- list()
 
-      if (!isTRUE(sim$.notRun)){
+      if (!isTRUE(sim$.notRun)) {
         # schedule future event(s)
         sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "makingModel")
         sim <- scheduleEvent(sim, start(sim), "caribouPopGrowthModel", "gettingData")
@@ -221,7 +221,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     makingModel = {
       # 1. Prepare table based on which models to use
       message("Building recruitment model and female survival model tables")
-      if (!P(sim)$useQuantiles){
+      if (!P(sim)$useQuantiles) {
         # 1.1. recruitmentModelDT: Table with 3 columns: Coefficient, Value, StdErr
         sim$recruitmentModelDT <- makeDTforPopGrowth(populationGrowthTable = sim$populationGrowthTable,
                                                      modelVersion = P(sim)[["recruitmentModelVersion"]],
@@ -240,14 +240,14 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
         #   a) matrix with SD x nBootstrap (coeffTable)
         #   b) averages (coeffValues)
         #   2.1. recruitmentModel
-        sim$recruitmentModel <- lapply(names(sim$recruitmentModelDT), FUN = function(modelType){
+        sim$recruitmentModel <- lapply(names(sim$recruitmentModelDT), FUN = function(modelType) {
           message(paste0("Building recruitment models for ", modelType))
           tb <- buildCoefficientsTable(caribouCoefTable = sim$recruitmentModelDT[[modelType]],
                                        nBootstrap = P(sim)$nBootstrap)
         })
         names(sim$recruitmentModel) <- names(sim$recruitmentModelDT)
         # 2.2. femaleSurvivalModel
-        sim$femaleSurvivalModel <- lapply(names(sim$femaleSurvivalModelDT), FUN = function(modelType){
+        sim$femaleSurvivalModel <- lapply(names(sim$femaleSurvivalModelDT), FUN = function(modelType) {
           message(paste0("Building female survival models for ", modelType))
           tb <- buildCoefficientsTable(caribouCoefTable = sim$femaleSurvivalModelDT[[modelType]],
                                        nBootstrap = P(sim)$nBootstrap)
@@ -263,18 +263,20 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
 
     },
     gettingData = {
-      if (!P(sim)$.fireLayerListProvided){
+      if (!P(sim)$.fireLayerListProvided) {
         message("Creating fireLayerList for ", time(sim))
         # sim$fireLayerList: a list of years of simulation with one raster composing
         #                    the most recent fires, namely (currentYear-recoveryTime):currentYear
-        sim$fireLayerList[[paste0("Year", time(sim))]] <- composeFireRaster(historicalFires = sim$historicalFires,
-                                                                            thisYearsFires = sim$rstCurrentBurnList,
-                                                                            studyArea = sim$studyArea,
-                                                                            recoveryTime = P(sim)$recoveryTime,
-                                                                            currentTime = time(sim),
-                                                                            pathData = dataPath(sim), # To compare to current time. First time needs
-                                                                            # to be different as we are creating layers, not updating them
-                                                                            rasterToMatch = sim$rasterToMatch)
+        sim$fireLayerList[[paste0("Year", time(sim))]] <- composeFireRaster(
+          historicalFires = sim$historicalFires,
+          thisYearsFires = sim$rstCurrentBurnList,
+          studyArea = sim$studyArea,
+          recoveryTime = P(sim)$recoveryTime,
+          currentTime = time(sim),
+          pathData = dataPath(sim), # To compare to current time. First time needs
+          # to be different as we are creating layers, not updating them
+          rasterToMatch = sim$rasterToMatch
+        )
       }
       # Assertion for changes in rasterToMatch
       if (ncell(sim$rasterToMatch) != ncell(sim$fireLayerList[[paste0("Year", time(sim))]]))
@@ -282,8 +284,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
              "Please make sure all layers provided align.")
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.growthInterval, "caribouPopGrowthModel", "gettingData")
-      if (P(sim)$predictLastYear){
-        if (all(time(sim) == start(sim), (end(sim)-start(sim)) != 0))
+      if (P(sim)$predictLastYear) {
+        if (all(time(sim) == start(sim), (end(sim) - start(sim)) != 0))
           sim <- scheduleEvent(sim, end(sim), "caribouPopGrowthModel", "gettingData")
       }
     },
@@ -298,7 +300,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
           names(sim$disturbances) <- paste0("Year", time(sim))
         params(sim)[[currentModule(sim)]]$.useDummyData <- FALSE # this guarantees that next year is gonna be checked for data
       } else {
-        if (is.null(sim$disturbances)){
+        if (is.null(sim$disturbances)) {
           sim$disturbances <- list()
         }
         sim$disturbances[[paste0("Year", time(sim))]] <- getLayersCaribou(currentTime = time(sim),
@@ -312,8 +314,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                                                    destinationPath = dataPath(sim))
       }
 
-      if (!all(is.na(sim$disturbances[[paste0("Year", time(sim))]]))){
-         if (!P(sim)$useQuantiles){
+      if (!all(is.na(sim$disturbances[[paste0("Year", time(sim))]]))) {
+         if (!P(sim)$useQuantiles) {
            sim$predictedCaribou[[paste0("Year", time(sim))]] <- populationGrowthModel(
              femaleSurvivalModel = sim$femaleSurvivalModel,
              recruitmentModel = sim$recruitmentModel,
@@ -525,6 +527,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     historicalFires <- Cache(
       prepInputs,
       url = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7/",
+      targetFile = "NBAC_CAN_1986_2017_NFDB_up_to_1985.shp",
       alsoExtract = "similar",
       destinationPath = dPath,
       studyArea = sim$studyArea,
@@ -532,6 +535,10 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                    paste0("extension:", sim$shortProvinceName),
                    stepCacheTag, "outFun:Cache")
     )
+    if (is(historicalFires, "sf")) {
+      historicalFires <- as_Spatial(historicalFires)
+    }
+
     # simplifying
     historicalFiresS <- historicalFires[, names(historicalFires) %in% c("YEAR", "DECADE")]
     historicalFiresDT <- data.table(historicalFiresS@data)
