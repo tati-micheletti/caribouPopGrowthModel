@@ -516,6 +516,9 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                    "step:prepAnthropogenicDistLayer",
                    "outFun:Cache")
     )
+    qs::qsave(sim$bufferedAnthropogenicDisturbance500m,
+              file = file.path(dPath, paste0(sim$shortProvinceName,
+                                             "_AnthropogenicDisturbances.qs")))
   }
 
   if (!suppliedElsewhere("historicalFires", sim)) {
