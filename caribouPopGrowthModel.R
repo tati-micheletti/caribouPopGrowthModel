@@ -451,8 +451,9 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     # remove any province leftovers from GIS operations. Due to the
     # terrible original projection (aea), we get weird little polygons from other
     # provinces at borders sometimes
+    provNameToKeep <- if (sim$shortProvinceName == "NT") "NWT" else sim$shortProvinceName
     provsToKeep <- which(herds[["PROV_TERR"]] %in% unique(herds[["PROV_TERR"]][
-      grepl(pattern = sim$shortProvinceName, x = herds[["PROV_TERR"]])]))
+      grepl(pattern = provNameToKeep, x = herds[["PROV_TERR"]])]))
     # subset
     herds <- herds[provsToKeep, ]
 
