@@ -32,17 +32,20 @@ composeFireRaster <- function(currentTime,
         }
         return(fireRas)
       })
+
       names(tsRas) <- paste0("Year", unique(historicalFires$fireYear))
       tsRas <- lapply(names(tsRas), function(r){
         ras <- tsRas[[r]]
         names(ras) <- paste0("historicalFires", r)
         return(ras)
       })
+
       names(tsRas) <- paste0("Year", unique(historicalFires$fireYear))
       qs::qsave(tsRas, file = firesFilenameList)
     } else {
       tsRas <- qs::qread(firesFilenameList)
     }
+
     # This is the first year. I need to create one historical raster of burns with years as counters
     # Place the maximum year of the list in the pixel
 
@@ -55,6 +58,7 @@ composeFireRaster <- function(currentTime,
     } else {
       minYearLapply <- minYear
     }
+
     subThisYears <- raster::stack(lapply(minYearLapply:minCurrTime, function(Y){
       yN <- grep(Y, names(tsRas))
       if (length(yN) == 0){ # No fires in this specific year, layer doesn't exist
@@ -67,6 +71,7 @@ composeFireRaster <- function(currentTime,
       names(y) <- paste0("Year", Y)
       return(y)
     }))
+
     if (minYearLapply == minYear){
       counterRaster <- raster::calc(subThisYears, fun = max, na.rm = TRUE)
     } else {
