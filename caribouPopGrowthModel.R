@@ -1,14 +1,13 @@
 defineModule(sim, list(
   name = "caribouPopGrowthModel",
-  description = paste0("Module to simulate Caribou population growth, based",
-                       " on lambda using published ECCC data or Johnson et al., 2020 models"),
+  description = paste("Module to simulate Caribou population growth (lambda)",
+                      "using published ECCC data (2011) or Johnson et al. (2020) models."),
   keywords = c("Caribou", "population", "lambda"),
-  authors = c(person("Tati", "Micheletti", email = "tati.micheletti@gmail.com",
-                     role = c("aut", "cre")),
-              person("Frances", "Stewart", email = "frances.stewart@canada.ca",
-                     role = c("aut", "cre")),
-              person("Eliot", "McIntire", email = "Eliot.McIntire@canada.ca",
-                     role = c("aut", "cre"))),
+  authors = c(
+    person("Tati", "Micheletti", email = "tati.micheletti@gmail.com", role = c("aut", "cre")),
+    person("Frances", "Stewart", email = "fstewart@wlu.ca", role = c("aut", "cre")),
+    person("Eliot", "McIntire", email = "eliot.mcintire@nrcan-rncan.gc.ca", role = c("aut", "cre"))
+  ),
   childModules = character(0),
   version = list(SpaDES.core = "0.2.5", caribouPopGrowthModel = "0.2.0"),
   spatialExtent = raster::extent(rep(NA_real_, 4)),
