@@ -9,12 +9,12 @@ defineModule(sim, list(
     person("Eliot", "McIntire", email = "eliot.mcintire@nrcan-rncan.gc.ca", role = c("aut", "cre"))
   ),
   childModules = character(0),
-  version = list(SpaDES.core = "0.2.5", caribouPopGrowthModel = "0.2.0"),
+  version = list(caribouPopGrowthModel = "0.2.0"),
   spatialExtent = raster::extent(rep(NA_real_, 4)),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
-  documentation = list("README.txt", "caribouPopGrowthModel.Rmd"),
+  documentation = list("README.md", "caribouPopGrowthModel.Rmd"),
   reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns", "tictoc",
                   "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc"),
   # "tati-micheletti/caribouMetrics@dde5823d097f8362f279d7bdc5f4bf597799a898" currently not working but installed
