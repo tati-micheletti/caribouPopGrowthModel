@@ -5,7 +5,6 @@
 getAnthropoDisturbanceForBorealCaribou <- function(studyArea,
                                                    rasterToMatch,
                                                    pathData){
-
   fullAthropoCanada <- file.path(pathData, "completeAnthropogenicDisturbance_caribou.qs")
   if (!file.exists(fullAthropoCanada)){
 
@@ -42,10 +41,17 @@ getAnthropoDisturbanceForBorealCaribou <- function(studyArea,
   bufferedAnthropogenicDisturbance500m <- fasterize::fasterize(sf = bufferedAnthropogenicDisturbance500mSF,
                                                                raster = rasterToMatch, field = "fieldSF",
                                                                background = 0)
-  buffAnthroDist500m <- Cache(postProcess, x = bufferedAnthropogenicDisturbance500m,
+  # Wrapping in Cache seems to be failing if it is the first time. Not necessary, though, as we are
+  # saving and recovering the object.
+  # buffAnthroDist500m <- Cache(postProcess, x = bufferedAnthropogenicDisturbance500m,
+  #                             destinationPath = pathData,
+  #                             studyArea = studyArea,
+  #                             rasterToMatch = rasterToMatch,
+  #                             userTags = c("step:maskAnthropogenicDistLayer", "outFun:Cache"))
+  buffAnthroDist500m <- postProcess(x = bufferedAnthropogenicDisturbance500m,
                               destinationPath = pathData,
                               studyArea = studyArea,
-                              rasterToMatch = rasterToMatch,
-                              userTags = c("step:maskAnthropogenicDistLayer", "outFun:Cache"))
-return(buffAnthroDist500m)
+                              rasterToMatch = rasterToMatch)
+
+  return(buffAnthroDist500m)
   }
