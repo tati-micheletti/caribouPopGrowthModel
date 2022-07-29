@@ -105,14 +105,24 @@ extractDisturbanceFast <- function(shapefileName,
       if (!is.null(caribouShapefile$HERD)){
         "HERD"
       } else {
-NULL
+        if (!is.null(caribouShapefile$POPULATION)){
+          "POPULATION"
+        } else {
+          if (!is.null(caribouShapefile$REGION)){
+            "REGION"
+          } else {
+            NULL
+          }
+        }
     }
   }
   }
-  if (is.null(nm))
+
+  if (is.null(nm)){
     stop(paste0("The shapefile ", shapefileName, " does not have a field named ",
-                "'NAME' or 'Name'. Please add that to it and run the ",
-                "simulation again"))
+                "'NAME', 'Name', 'HERD', 'POPULATION' or 'REGION'. ",
+                "Please add that to it and run the simulation again"))
+  }
 
   caribouShapefileSF$ID <- as.numeric(seq(1:length(caribouShapefileSF[[nm]])))
   caribouShapefileRas <- fasterize::fasterize(sf = caribouShapefileSF,

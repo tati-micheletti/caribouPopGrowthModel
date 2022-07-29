@@ -19,15 +19,18 @@ populationGrowthModel <-  function(femaleSurvivalModel,
   femaleSurvivalPredictions <- rbindlist(lapply(X = names(femaleSurvivalModel),
                                       FUN = function(modelType) {
 if (useQuantiles){
+  # Below has been changed to be used with the newest caribouMetrics
   responseList <- sampleRates(covTable = covTable,
                               coefSample = femaleSurvivalModel[[modelType]][["coefSamples"]],
                               coefValues = femaleSurvivalModel[[modelType]][["coefValues"]],
                               modVer = modelType,
                               resVar = "femaleSurvival",
                               ignorePrecision = FALSE,
-                              outputDir = outputDir,
+                              # outputDir = outputDir,
                               returnSample = FALSE,
-                              useQuantiles = FALSE)
+                              # useQuantiles = FALSE
+  )
+
 } else {
   responseList <- generatePopGrowthPredictions(covTable = covTable,
                                                coeffTable = femaleSurvivalModel[[modelType]][["coeffTable"]],
@@ -42,15 +45,17 @@ if (useQuantiles){
   recruitmentPredictions <- rbindlist(lapply(X = names(recruitmentModel),
                                                 FUN = function(modelType) {
 if (useQuantiles){
+  # Below has been changed to be used with the newest caribouMetrics
   responseList <- sampleRates(covTable = covTable,
                               coefSample = recruitmentModel[[modelType]][["coefSamples"]],
                               coefValues = recruitmentModel[[modelType]][["coefValues"]],
                               modVer = modelType,
                               resVar = "recruitment",
                               ignorePrecision = FALSE,
-                              outputDir = outputDir,
+                              # outputDir = outputDir,
                               returnSample = FALSE,
-                              useQuantiles = FALSE)
+                              # useQuantiles = FALSE
+                              )
 } else {
   responseList <- generatePopGrowthPredictions(covTable = covTable,
                                                coeffTable = recruitmentModel[[modelType]][["coeffTable"]],

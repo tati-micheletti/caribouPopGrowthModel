@@ -19,6 +19,13 @@ defineModule(sim, list(
                   "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc"),
   # "tati-micheletti/caribouMetrics@dde5823d097f8362f279d7bdc5f4bf597799a898" currently not working but installed
   parameters = rbind(
+    defineParameter("cropAllRasToSA", "logical", TRUE, NA, NA,
+                    paste0("Some rasters might be covering different areas (i.e., ",
+                           " when landscape rasters are larger due to fire ",
+                           "processes and still named rasterToMatch).",
+                           " This parameter ensures all align without compromising ",
+                           "the RTM (i.e., by using it in mod). This helps voiding ",
+                           "situations with fires being generated in water.")),
     defineParameter("predictLastYear", "logical", TRUE, NA, NA,
                     paste0("Should it schedule events for the last year",
                            " of simulation if this is not a multiple of interval?")),
@@ -115,13 +122,18 @@ defineModule(sim, list(
                                 "Defaults to shapefile of polygons in the NWT")),
     expectsInput(objectName = "historicalFires", objectClass = "SpatialPolygonsDataFrame",
                  desc = paste0("All fires in a year are identified by the year",
-                               " (i.e. same ID for all, 'fireYear')."),
+                               " (i.e. same ID for all, 'fireYear') WITH minimum date (recoveryTime).",
+                               "The original layer is subset to the currentTime - recoveryTime"),
+                 sourceURL = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7"),
+    expectsInput(objectName = "historicalFiresAll", objectClass = "SpatialPolygonsDataFrame",
+                 desc = paste0("All fires in a year are identified by the year",
+                               " (i.e. same ID for all, 'fireYear') WITHOUT minimum date"),
                  sourceURL = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7"),
     expectsInput(objectName = "rstCurrentBurnList", objectClass = "list",
                  desc = paste0("List of fires by year (raster format). These ",
                                "layers are produced by simulation.",
                                "Defaults to dummy data."),
-                 sourceURL = ""),
+                 sourceURL = "https://drive.google.com/file/d/1PRJYjie5vdsq_4W6WN5zjnnjuBlt8cJY/"),
     expectsInput(objectName = "populationGrowthTable", objectClass = "data.table",
                  desc = paste0("Table with 6 columns:",
                                "1. modelVersion: ECCC or Johnson", # only for recruitment
@@ -202,6 +214,14 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       #   params(sim)[[currentModule(sim)]]$popModel <- "timestepLambda"
       # }
 
+      mod$rasterToMatch <- sim$rasterToMatch
+
+      if (P(sim)$cropAllRasToSA){
+        mod$rasterToMatch <- maskInputs(x = mod$rasterToMatch,
+                                        studyArea = sim$studyArea)
+        mod$rasterToMatch[sim$waterRaster[] == 1] <- NA
+      }
+
       sim$predictedCaribou <- list()
       if (!P(sim)$.fireLayerListProvided)
         sim$fireLayerList <- list()
@@ -274,11 +294,11 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
           currentTime = time(sim),
           pathData = dataPath(sim), # To compare to current time. First time needs
           # to be different as we are creating layers, not updating them
-          rasterToMatch = sim$rasterToMatch
+          rasterToMatch = mod$rasterToMatch
         )
       }
       # Assertion for changes in rasterToMatch
-      if (ncell(sim$rasterToMatch) != ncell(sim$fireLayerList[[paste0("Year", time(sim))]]))
+      if (ncell(mod$rasterToMatch) != ncell(sim$fireLayerList[[paste0("Year", time(sim))]]))
         stop("The number of cells in the RTM does not match the number of cells in the fireLayer. ",
              "Please make sure all layers provided align.")
       # schedule future event(s)
@@ -309,7 +329,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                                                    useFuture = P(sim)$useFuture,
                                                                    fireLayer = sim$fireLayerList[[paste0("Year", time(sim))]],
                                                                    waterRaster = sim$waterRaster,
-                                                                   rasterToMatch = sim$rasterToMatch,
+                                                                   rasterToMatch = mod$rasterToMatch,
                                                                    destinationPath = dataPath(sim))
       }
 
@@ -325,9 +345,14 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
              useQuantiles = P(sim)$useQuantiles)
 
          } else {
+           surv <- list(sim$demographicCoefficients$coefSamples_Survival)
+           names(surv) <- P(sim)$femaleSurvivalModelVersion
+           rec <- list(sim$demographicCoefficients$coefSamples_Recruitment)
+           names(rec) <- P(sim)$recruitmentModelVersion
+
            sim$predictedCaribou[[paste0("Year", time(sim))]] <- populationGrowthModel(
-             femaleSurvivalModel = sim$demographicCoefficients$coefSamples_Survival,
-             recruitmentModel = sim$demographicCoefficients$coefSamples_Recruitment,
+             femaleSurvivalModel = surv,
+             recruitmentModel = rec,
              disturbances = sim$disturbances[[paste0("Year", time(sim))]],
              outputDir = dataPath(sim),
              currentTime = time(sim),
@@ -391,7 +416,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     message(crayon::green("fireLayerList detected. The module will skip creating it."))
     params(sim)[[currentModule(sim)]]$.fireLayerListProvided <- TRUE
     }
-
   if (!suppliedElsewhere("populationGrowthTable", sim)) {
     sim$populationGrowthTable <- prepInputs(targetFile = "populationGrowthTable.csv",
                                        url = extractURL("populationGrowthTable"),
@@ -400,14 +424,12 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                        omitArgs = "destinationPath",
                                        overwrite = TRUE)
   }
-
   if (!suppliedElsewhere(object = "studyArea", sim = sim)) {
     sim$studyArea <- Cache(prepInputs,
                                 url = "https://drive.google.com/file/d/1RPfDeHujm-rUHGjmVs6oYjLKOKDF0x09/",
                                 destinationPath = dPath,
                                 omitArgs = "destinationPath")
   }
-
   if (!suppliedElsewhere(object = "rasterToMatch", sim = sim)) {
     sim$rasterToMatch <- Cache(prepInputs, url = "https://drive.google.com/file/d/11yCDc2_Wia2iw_kz0f0jOXrLpL8of2oM/",
                                     studyArea = sim$studyArea,
@@ -463,8 +485,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
               immediate. = TRUE)
       sim$.notRun <- TRUE
     }
-  }
-
+    }
   if (!suppliedElsewhere("currentPop", sim) &
       P(sim)$popModel != "annualLambda") {
     # Currently not used!
@@ -472,7 +493,6 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     #                            "\nGenerating a mean population size for the studyArea of Edehzhie (n = 353).")))
     # sim$currentPop <- 353 # [ FIX ] should pass a file that is a list of population sizes for each one of the units/LPU for each studyArea shp
   }
-
   if (!suppliedElsewhere("waterRaster", sim)) {
     sim$waterRaster <- prepInputs(
       url = "https://drive.google.com/file/d/1eZdn3kwCWjl3fTQwxnkpQhYmLLuBBgVe/",
@@ -491,9 +511,9 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     wV <- getValues(sim$waterRaster)
     sim$waterRaster <- setValues(x = raster(sim$waterRaster), values = wV)
   }
-
   if (!suppliedElsewhere("bufferedAnthropogenicDisturbance500m", sim)) {
-    # OBS: The file used for caribou herds also has all fire and athropogenic disturbance in separated layers
+    # OBS: The file used for caribou herds also has all fire and anthropogenic
+    # disturbance in separated layers
     # I probably shouldn't use the fire because I can't exclude the "older".
     # Atikakibernes_Anthropogenic_and_40YrFire_Disturbance_Footprint_Updated2012.shp
     # I just build new ones.
@@ -518,15 +538,15 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                    "step:prepAnthropogenicDistLayer",
                    "outFun:Cache")
     )
+
     qs::qsave(sim$bufferedAnthropogenicDisturbance500m,
               file = file.path(dPath, paste0(sim$shortProvinceName,
                                              "_AnthropogenicDisturbances.qs")))
   }
-
-  if (!suppliedElsewhere("historicalFires", sim)) {
+  if (!suppliedElsewhere("historicalFiresAll", sim)) {
     historicalFires <- Cache(
       prepInputs,
-      url = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7/",
+      url = extractURL("historicalFiresAll"),
       targetFile = "NBAC_CAN_1986_2017_NFDB_up_to_1985.shp",
       alsoExtract = "similar",
       destinationPath = dPath,
@@ -535,22 +555,21 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                    paste0("extension:", sim$shortProvinceName),
                    stepCacheTag, "outFun:Cache")
     )
-    if (is(historicalFires, "sf")) {
-      historicalFires <- as_Spatial(historicalFires)
-    }
 
     # simplifying
     historicalFiresS <- historicalFires[, names(historicalFires) %in% c("YEAR", "DECADE")]
-    historicalFiresDT <- data.table(historicalFiresS@data)
+    historicalFiresDT <- data.table(historicalFiresS[])
     historicalFiresDT[, decadeYear := 5 + (as.numeric(unlist(lapply(strsplit(historicalFiresDT$DECADE, split = "-"), `[[`, 1))))]
     historicalFiresDT[, fireYear := ifelse(YEAR == -9999, decadeYear, YEAR)]
     historicalFiresS$fireYear <- historicalFiresDT$fireYear
     historicalFires <- historicalFiresS[, "fireYear"]
-    historicalFiresReproj <- projectInputs(historicalFires, targetCRS = as.character(crs(studyArea)))
+    sim$historicalFiresAll <- projectInputs(historicalFires, targetCRS = as.character(crs(studyArea)))
+  }
 
+  if (!suppliedElsewhere("historicalFires", sim)) {
     # Discard fires with more than 60 from starting time
     oldestFireYear <- time(sim) - P(sim)$recoveryTime
-    sim$historicalFires <- historicalFiresReproj[historicalFiresReproj$fireYear >= oldestFireYear,]
+    sim$historicalFires <- sim$historicalFiresAll[sim$historicalFiresAll$fireYear >= oldestFireYear,]
   }
 
   if (!suppliedElsewhere("rstCurrentBurnList", sim)) {
@@ -565,7 +584,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                 "no fires will be generated!",
                 immediate. = TRUE)
         rstCurrentBurnList <- Cache(prepInputs,
-                                    url = "https://drive.google.com/file/d/1PRJYjie5vdsq_4W6WN5zjnnjuBlt8cJY/",
+                                    url = extractURL("rstCurrentBurnList"),
                                     destinationPath = inputPath(sim),
                                     fun = "readRDS",
                                     userTags = c("module:caribouPopGrowthModule",

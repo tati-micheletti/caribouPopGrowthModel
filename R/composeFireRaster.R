@@ -6,7 +6,7 @@ composeFireRaster <- function(currentTime,
                               rasterToMatch,
                               recoveryTime,
                               thisYearsFires){
-
+  rasterToMatch[] <- rasterToMatch[]
   firesFilenameRas <- file.path(pathData, paste0("historicalFireRaster_",
                                                  1+(currentTime-recoveryTime),"to",
                                                  currentTime, "_",
@@ -25,7 +25,7 @@ composeFireRaster <- function(currentTime,
         subst <- historicalFires[historicalFires$fireYear == YYYY, ]
         if (!length(subst) == 0){
           substSF <- sf::st_as_sf(subst)
-          yearFire <- suppressWarnings(fasterize::fasterize(sf = substSF,
+          yearFire <- suppressWarnings(fasterize::fasterize(sf = st_collection_extract(substSF, "POLYGON"),
                                                             raster = rasterToMatch,
                                                             field = "fireYear"))
           fireRas[yearFire == YYYY] <- YYYY
@@ -99,6 +99,7 @@ composeFireRaster <- function(currentTime,
     counterRaster <- raster::calc(raster::stack(counterRaster,
                                                 subThisYears), fun = max,
                                   na.rm = TRUE)
+    counterRaster[] <- counterRaster[]
   }
   # Mask counter Raster to RTM map to avoid overestimating caribou later on
   counterRasterMasked <- maskInputs(counterRaster,
