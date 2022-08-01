@@ -16,8 +16,8 @@ defineModule(sim, list(
   citation = list("citation.bib"),
   documentation = list("README.md", "caribouPopGrowthModel.Rmd"),
   reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns", "tictoc",
-                  "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc"),
-  # "tati-micheletti/caribouMetrics@dde5823d097f8362f279d7bdc5f4bf597799a898" currently not working but installed
+                  "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc", 
+                  "LandSciTech/caribouMetrics"),
   parameters = rbind(
     defineParameter("cropAllRasToSA", "logical", TRUE, NA, NA,
                     paste0("Some rasters might be covering different areas (i.e., ",
