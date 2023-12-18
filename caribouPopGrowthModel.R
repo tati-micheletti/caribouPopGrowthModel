@@ -16,7 +16,7 @@ defineModule(sim, list(
   citation = list("citation.bib"),
   documentation = list("README.md", "caribouPopGrowthModel.Rmd"),
   reqdPkgs = list("raster", "data.table", "ggplot2", "sf", "tictoc",
-                  "future", "future.apply", "achubaty/amc", 
+                  "future", "future.apply", 
                   "LandSciTech/caribouMetrics"),
   parameters = rbind(
     defineParameter("cropAllRasToSA", "logical", TRUE, NA, NA,
