@@ -15,8 +15,8 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.md", "caribouPopGrowthModel.Rmd"),
-  reqdPkgs = list("data.table", "ggplot2", "sf", "tati-micheletti/usefulFuns", "tictoc",
-                  "future", "future.apply", "PredictiveEcology/fireSenseUtils", "achubaty/amc", 
+  reqdPkgs = list("raster", "data.table", "ggplot2", "sf", "tictoc",
+                  "future", "future.apply", "achubaty/amc", 
                   "LandSciTech/caribouMetrics"),
   parameters = rbind(
     defineParameter("cropAllRasToSA", "logical", TRUE, NA, NA,
@@ -103,17 +103,6 @@ defineModule(sim, list(
                                "Is updated every time step if not using lambda models",
                                "Not currently implemented."),
                  sourceURL = NA),
-    expectsInput(objectName = "pixelGroupMap", objectClass = "RasterLayer",
-                 desc = paste0("Map of groups of pixels that share the same info from cohortData (sp, age, biomass, etc).",
-                               " Should at some point be genrated by the fire model (i.e. scfmSpread)",
-                               "Only need to be supplied if dummy data should be used as",
-                               " models here are not linked to vegetation, only ",
-                               "fire and anthropogenic disturbance")),
-    expectsInput(objectName = "cohortData", objectClass = "data.table",
-                 desc = paste0("data.table with information by pixel group of sp, age, biomass, etc",
-                               "Only need to be supplied if dummy data should be used",
-                               " as models here are not linked to vegetation, only ",
-                               "fire and anthropogenic disturbance")),
     expectsInput(objectName = "bufferedAnthropogenicDisturbance500m", objectClass = "RasterLayer",
                  desc = paste0("Layer that maps the % of anthropogenic disturbance in a 500m buffer.",
                                "This layer is static if no modules are forecasting anthropogenic disturbances")),
@@ -131,8 +120,9 @@ defineModule(sim, list(
                  sourceURL = "https://drive.google.com/file/d/1WPfNrB-nOejOnIMcHFImvnbouNFAHFv7"),
     expectsInput(objectName = "rstCurrentBurnList", objectClass = "list",
                  desc = paste0("List of fires by year (raster format). These ",
-                               "layers are produced by simulation.",
-                               "Defaults to dummy data."),
+                               "layers are produced by simulation. The module needs ALL years ",
+                               "between starting and final ones!",
+                               "Defaults to dummy data with warning if data not provided."),
                  sourceURL = "https://drive.google.com/file/d/1PRJYjie5vdsq_4W6WN5zjnnjuBlt8cJY/"),
     expectsInput(objectName = "populationGrowthTable", objectClass = "data.table",
                  desc = paste0("Table with 6 columns:",
@@ -310,8 +300,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     },
     growingCaribou = {
       if (P(sim)$.useDummyData == TRUE) {
-        message(crayon::red(paste0("Disturbance total information (pixelGroupMap & cohortData) was not found.",
-                                   "\nGenerating DUMMY DATA to test the module.")))
+        message(crayon::red(paste0("\nGenerating DUMMY DATA to test the module.")))
           sim$disturbances <- list(assign(x = paste0("Year", time(sim)),
                                           value = data.frame(disturbances = rnorm(n = 1,
                                                                                   mean = 30.75,
@@ -366,8 +355,10 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
             digestDisturbances(disturbances = sim$disturbances[[paste0("Year", time(sim))]],
                                Year = time(sim)),
             by = c("Herd", "area")))
-      print(summaryToPrint[, c("Herd", "average_femaleSurvival", "average_recruitment",
-                               "annualLambda", "Anthro", "fire_prop_dist", "Fire", "Total_dist",
+      names(summaryToPrint)[names(summaryToPrint) == "area"] <- "Shapefile"
+      setkey(summaryToPrint, "Shapefile", "annualLambda")
+      print(summaryToPrint[, c("Shapefile", "Herd", "annualLambda", "average_femaleSurvival", 
+                               "average_recruitment", "Anthro", "fire_prop_dist", "Fire", "Total_dist",
                                "fire_excl_anthro")])
 
       # schedule future event(s)
@@ -438,7 +429,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                     omitArgs = c("destinationPath", "overwrite", "filename2"))
   }
   if (!suppliedElsewhere(object = "shortProvinceName", sim = sim)) {
-    sim$shortProvinceName <- strsplit(x = runName, split = "_")[[1]][1]
+    sim$shortProvinceName <- strsplit(x = sim$runName, split = "_")[[1]][1]
     message("shortProvinceName was not supplied. Trying to guess from runName: ",
             paste(sim$shortProvinceName, collapse = ", "),
             ". If this is not correct, please provide the correct object",
@@ -465,7 +456,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                         " +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 ",
                                         "+datum=NAD83 +units=m no_defs"))
     herds <- as_Spatial(herds)
-    herds <- projectInputs(x = herds, targetCRS = crs(studyArea))
+    herds <- projectInputs(x = herds, targetCRS = raster::crs(sim$studyArea))
     herds <- postProcess(x = herds,
                         studyArea = sim$studyArea) # ATTENTION: If passing RTM,
                                                    # it will grid the shp
@@ -512,6 +503,7 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
     sim$waterRaster <- setValues(x = raster(sim$waterRaster), values = wV)
   }
   if (!suppliedElsewhere("bufferedAnthropogenicDisturbance500m", sim)) {
+
     # OBS: The file used for caribou herds also has all fire and anthropogenic
     # disturbance in separated layers
     # I probably shouldn't use the fire because I can't exclude the "older".

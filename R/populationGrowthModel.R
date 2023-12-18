@@ -142,6 +142,5 @@ if (useQuantiles){
       return(DTbind)
     }))
   }
-
   return(DT)
 }

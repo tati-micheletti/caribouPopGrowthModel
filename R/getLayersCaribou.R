@@ -17,10 +17,8 @@
 #' @export
 #' @importFrom crayon red
 #' @importFrom data.table data.table setkey
-#' @importFrom LandR prepInputsLCC
 #' @importFrom raster dropLayer extract projectRaster raster stack
 #' @importFrom reproducible prepInputs postProcess
-#' @importFrom SpaDES.tools rasterizeReduced
 #'
 #' @rdname getLayersCaribou
 getLayersCaribou <- function(currentTime,

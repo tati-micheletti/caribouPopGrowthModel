@@ -15,7 +15,6 @@
 #'
 #' @author Tati Micheletti
 #' @export
-#' @include calculatePixelsInaRule.R
 #' @importFrom crayon red
 #' @importFrom raster raster stack
 #' @importFrom reproducible postProcess
@@ -92,6 +91,7 @@ extractDisturbanceFast <- function(shapefileName,
 
   # Extract the caribou shapefile values by fasterizing it. Way faster than raster::extract
   message(crayon::blue("Fasterizing caribou shapefile..."))
+
   caribouShapefile <- projectInputs(x = caribouShapefile,
                                      targetCRS = crs(rasterToMatch))
 
@@ -102,22 +102,25 @@ extractDisturbanceFast <- function(shapefileName,
     if (!is.null(caribouShapefile$Name)) {
       "Name"
     } else {
-      if (!is.null(caribouShapefile$HERD)){
-        "HERD"
+      if (!is.null(caribouShapefile$Herd_name)){
+        "Herd_name"
       } else {
-        if (!is.null(caribouShapefile$POPULATION)){
-          "POPULATION"
-        } else {
-          if (!is.null(caribouShapefile$REGION)){
-            "REGION"
+        if (!is.null(caribouShapefile$HERD)){
+          "HERD"
           } else {
-            NULL
+            if (!is.null(caribouShapefile$POPULATION)){
+              "POPULATION"
+              } else {
+                if (!is.null(caribouShapefile$REGION)){
+                  "REGION"
+                  } else {
+                    NULL
+                  }
+              }
           }
-        }
+      }
     }
-  }
-  }
-
+    }
   if (is.null(nm)){
     stop(paste0("The shapefile ", shapefileName, " does not have a field named ",
                 "'NAME', 'Name', 'HERD', 'POPULATION' or 'REGION'. ",
@@ -128,7 +131,6 @@ extractDisturbanceFast <- function(shapefileName,
   caribouShapefileRas <- fasterize::fasterize(sf = caribouShapefileSF,
                                               raster = rasterToMatch,
                                               field = "ID")
-
   # Remove the ID's that are not in the rasterized version of the sA (because they are too small)
   availableInRas <- na.omit(unique(caribouShapefileRas[]))
   polsToRemove <- setdiff(caribouShapefileSF[["ID"]], availableInRas)

@@ -6,6 +6,7 @@ composeFireRaster <- function(currentTime,
                               rasterToMatch,
                               recoveryTime,
                               thisYearsFires){
+
   rasterToMatch[] <- rasterToMatch[]
   firesFilenameRas <- file.path(pathData, paste0("historicalFireRaster_",
                                                  1+(currentTime-recoveryTime),"to",
@@ -75,7 +76,7 @@ composeFireRaster <- function(currentTime,
     if (minYearLapply == minYear){
       counterRaster <- raster::calc(subThisYears, fun = max, na.rm = TRUE)
     } else {
-      counterRaster <- unstack(subThisYears)[[1]]
+      counterRaster <- raster::unstack(subThisYears)[[1]]
     }
     names(counterRaster) <- tools::file_path_sans_ext(basename(firesFilenameRas))
     writeRaster(counterRaster, firesFilenameRas, format = "GTiff")
@@ -85,12 +86,16 @@ composeFireRaster <- function(currentTime,
   }
 
   # 1. Determine which years are in "thisYearsFires"
-  maxYearFromData <- maxValue(counterRaster)
+  maxYearFromData <- raster::maxValue(counterRaster)
   # If the max of the counter is not the current year, we need data from simulations
   if (maxYearFromData < currentTime){
     minYear <- max(minYear, (maxYearFromData+1))
     subThisYears <- raster::stack(lapply(minYear:currentTime, function(Y){
-      y <- thisYearsFires[[grep(Y, names(thisYearsFires))]]
+      YF <- grep(Y, names(thisYearsFires))
+      if (length(YF) == 0) 
+        stop(paste0("The rstCurrentBurn for year ", Y," was not found. Please make sure this data ",
+                    "is available."))
+      y <- thisYearsFires[[YF]]
       y[y > 0] <- Y
       names(y) <- paste0("Year", Y)
       return(y)
