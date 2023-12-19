@@ -48,6 +48,9 @@ defineModule(sim, list(
     defineParameter("recoveryTime", "numeric", 40, NA, NA,
                     paste0("Time to recover the forest ",
                            "enough for caribou (ECCC 2011; Johnson et al. 2020)")),
+    defineParameter(".runName", "character", NULL, NA, NA,
+                    paste0("Needs to be provided. Can be a combination of short Province name and ",
+                           "replicate")),
     defineParameter("popModel", "character", "annualLambda", NA, NA,
                     paste0("Which population model to use? Options",
                            "are in the file popModels.R in the R folder",
@@ -121,7 +124,7 @@ defineModule(sim, list(
     expectsInput(objectName = "rstCurrentBurnList", objectClass = "list",
                  desc = paste0("List of fires by year (raster format). These ",
                                "layers are produced by simulation. The module needs ALL years ",
-                               "between starting and final ones!",
+                               "between starting and final ones because of the recovery time!",
                                "Defaults to dummy data with warning if data not provided."),
                  sourceURL = "https://drive.google.com/file/d/1PRJYjie5vdsq_4W6WN5zjnnjuBlt8cJY/"),
     expectsInput(objectName = "populationGrowthTable", objectClass = "data.table",
@@ -398,8 +401,8 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
 .inputObjects <- function(sim) {
   stepCacheTag <- c("module:caribouPopGrowth", "event:.inputObjects")
 
-  # THis is already set in metadata
-  # params(sim)[[currentModule(sim)]]$.useDummyData <- FALSE
+  if (is.null(P(sim)$.runName)) stop("Please provide a runName")
+
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
@@ -429,11 +432,15 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                     omitArgs = c("destinationPath", "overwrite", "filename2"))
   }
   if (!suppliedElsewhere(object = "shortProvinceName", sim = sim)) {
-    sim$shortProvinceName <- strsplit(x = sim$runName, split = "_")[[1]][1]
-    message("shortProvinceName was not supplied. Trying to guess from runName: ",
+    sim$shortProvinceName <- tryCatch({
+    shpn <- strsplit(x = sim$runName, split = "_")[[1]][1]
+    warning(paste0("shortProvinceName was not supplied. Trying to guess from runName: ",
             paste(sim$shortProvinceName, collapse = ", "),
             ". If this is not correct, please provide the correct object",
-            " 'shortProvinceName'")
+            " 'shortProvinceName'"), immediate. = TRUE)
+    }, error = function(e){
+      stop("shortProvinceName couldn't be guessed. Please provide it.")
+    })
   }
   if (!suppliedElsewhere(object = "listSACaribou", sim = sim)) {
     # Shapefile: Boreal_Caribou_Range_Boundaries_AsOfJune62012.shp
@@ -477,33 +484,25 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
       sim$.notRun <- TRUE
     }
     }
-  if (!suppliedElsewhere("currentPop", sim) &
-      P(sim)$popModel != "annualLambda") {
+  # if (!suppliedElsewhere("currentPop", sim) &
+      # P(sim)$popModel != "annualLambda") {
     # Currently not used!
     # message(crayon::yellow(paste0("Initial population size not provided.",
     #                            "\nGenerating a mean population size for the studyArea of Edehzhie (n = 353).")))
     # sim$currentPop <- 353 # [ FIX ] should pass a file that is a list of population sizes for each one of the units/LPU for each studyArea shp
-  }
+  # }
   if (!suppliedElsewhere("waterRaster", sim)) {
-    sim$waterRaster <- prepInputs(
-      url = "https://drive.google.com/file/d/1eZdn3kwCWjl3fTQwxnkpQhYmLLuBBgVe/",
-      destinationPath = inputPath(sim),
-      studyArea = sim$studyArea,
-      overwrite = TRUE,
-      rasterToMatch = sim$rasterToMatch,
-      method = "ngb"
-    )
-    # If LCC2005, water = 37
-    # If LCC2010, water = 18
-    sim$waterRaster[!is.na(sim$waterRaster[]) &
-                      sim$waterRaster[] != 37] <- NA
-    sim$waterRaster[!is.na(sim$waterRaster[])] <- 1
-    # Remove annoying colortable
-    wV <- getValues(sim$waterRaster)
-    sim$waterRaster <- setValues(x = raster(sim$waterRaster), values = wV)
+    
+    waterRaster <- Cache(makeWaterFromLCC, year = 2019,
+                                    destinationPath = dPath,
+                                    method = "ngb", 
+                                    studyArea = sim$studyArea,
+                                    rasterToMatch = sim$rasterToMatch)
+  
   }
   if (!suppliedElsewhere("bufferedAnthropogenicDisturbance500m", sim)) {
-
+    warning(paste0("bufferedAnthropogenicDisturbance500m not found. Will use: ",
+                   "HERD_Anthropogenic_Disturbance_Footprint_Updated2012", immediate. = TRUE))
     # OBS: The file used for caribou herds also has all fire and anthropogenic
     # disturbance in separated layers
     # I probably shouldn't use the fire because I can't exclude the "older".
@@ -536,26 +535,16 @@ doEvent.caribouPopGrowthModel = function(sim, eventTime, eventType) {
                                              "_AnthropogenicDisturbances.qs")))
   }
   if (!suppliedElsewhere("historicalFiresAll", sim)) {
-    historicalFires <- Cache(
-      prepInputs,
-      url = extractURL("historicalFiresAll"),
-      targetFile = "NBAC_CAN_1986_2017_NFDB_up_to_1985.shp",
-      alsoExtract = "similar",
-      destinationPath = dPath,
-      studyArea = sim$studyArea,
-      userTags = c("objectName:historicalFires",
-                   paste0("extension:", sim$shortProvinceName),
-                   stepCacheTag, "outFun:Cache")
-    )
-
-    # simplifying
-    historicalFiresS <- historicalFires[, names(historicalFires) %in% c("YEAR", "DECADE")]
-    historicalFiresDT <- data.table(historicalFiresS[])
-    historicalFiresDT[, decadeYear := 5 + (as.numeric(unlist(lapply(strsplit(historicalFiresDT$DECADE, split = "-"), `[[`, 1))))]
-    historicalFiresDT[, fireYear := ifelse(YEAR == -9999, decadeYear, YEAR)]
-    historicalFiresS$fireYear <- historicalFiresDT$fireYear
-    historicalFires <- historicalFiresS[, "fireYear"]
-    sim$historicalFiresAll <- projectInputs(historicalFires, targetCRS = as.character(crs(studyArea)))
+    
+    historicalFiresAll <- Cache(createHistoricalFilesAll, 
+                             url = extractURL("historicalFiresAll"),
+                             archive = "NBAC_CAN_1986_2017_NFDB_up_to_1985.zip",
+                             targetFile = "NBAC_CAN_1986_2017_NFDB_up_to_1985.shp",
+                             destinationPath = dataPath(sim),
+                             studyArea = sim$studyArea,
+                             userTags = c("objectName:historicalFiresAll",
+                                          paste0("extension:", sim$shortProvinceName),
+                                          stepCacheTag, "outFun:Cache"))
   }
 
   if (!suppliedElsewhere("historicalFires", sim)) {
