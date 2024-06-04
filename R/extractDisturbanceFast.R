@@ -31,12 +31,33 @@ extractDisturbanceFast <- function(shapefileName,
                                    rasterToMatch,
                                    destinationPath) {
 
+  if (is(rasterToMatch, "SpatRaster"))
+    rasterToMatchR <- raster::raster(rasterToMatch) else
+      rasterToMatchR <- rasterToMatch
+  
   message("Calculating disturbance for ", shapefileName)
-  caribouShapefile <- caribouShapefile[[shapefileName]]
+  if (is(caribouShapefile, "SpatVectorCollection")){
+    nms <- names(caribouShapefile)
+    caribouShapefileUnlisted <- as.list(caribouShapefile) 
+    names(caribouShapefileUnlisted) <- nms
+    caribouShapefileSingle <- caribouShapefileUnlisted[[shapefileName]]
+  } else caribouShapefileSingle <- caribouShapefile[[shapefileName]]
+  
 
   # Make sure that the layers align. This will only happen once until the anthropogenic layer becomes dynamic.
   areStackable <- tryCatch({
-    invisible(raster::stack(waterRaster, bufferedAnthropogenicDisturbance500m, rasterToMatch))
+    if (all(is(waterRaster, "SpatRaster"),
+            is(bufferedAnthropogenicDisturbance500m, "SpatRaster"),
+            is(rasterToMatch, "SpatRaster"))){
+      invisible(c(waterRaster, bufferedAnthropogenicDisturbance500m, rasterToMatch))
+    } else {
+      if (all(is(waterRaster, "RasterLayer"),
+           is(bufferedAnthropogenicDisturbance500m, "RasterLayer"),
+           is(rasterToMatch, "RasterLayer"))){
+        invisible(raster::stack(waterRaster, bufferedAnthropogenicDisturbance500m, rasterToMatch))
+      } else 
+        stop("waterRaster, bufferedAnthropogenicDisturbance500m and rasterToMatch need all to be either SpatRaster or RasterLayer")
+    }
     TRUE
   }, error = function(e){
     return(FALSE)
@@ -91,27 +112,27 @@ extractDisturbanceFast <- function(shapefileName,
 
   # Extract the caribou shapefile values by fasterizing it. Way faster than raster::extract
   message(crayon::blue("Fasterizing caribou shapefile..."))
+  if (crs(caribouShapefileSingle) != crs(rasterToMatch))
+    caribouShapefileSingle <- terra::project(x = caribouShapefileSingle,
+                                             targetCRS = crs(rasterToMatch))
 
-  caribouShapefile <- projectInputs(x = caribouShapefile,
-                                     targetCRS = crs(rasterToMatch))
-
-  caribouShapefileSF <- sf::st_as_sf(caribouShapefile)
-  nm <- if (!is.null(caribouShapefile$NAME)){
+  caribouShapefileSingleSF <- sf::st_as_sf(caribouShapefileSingle)
+  nm <- if (!is.null(caribouShapefileSingle$NAME)){
     "NAME"
   } else {
-    if (!is.null(caribouShapefile$Name)) {
+    if (!is.null(caribouShapefileSingle$Name)) {
       "Name"
     } else {
-      if (!is.null(caribouShapefile$Herd_name)){
+      if (!is.null(caribouShapefileSingle$Herd_name)){
         "Herd_name"
       } else {
-        if (!is.null(caribouShapefile$HERD)){
+        if (!is.null(caribouShapefileSingle$HERD)){
           "HERD"
           } else {
-            if (!is.null(caribouShapefile$POPULATION)){
+            if (!is.null(caribouShapefileSingle$POPULATION)){
               "POPULATION"
               } else {
-                if (!is.null(caribouShapefile$REGION)){
+                if (!is.null(caribouShapefileSingle$REGION)){
                   "REGION"
                   } else {
                     NULL
@@ -127,27 +148,27 @@ extractDisturbanceFast <- function(shapefileName,
                 "Please add that to it and run the simulation again"))
   }
 
-  caribouShapefileSF$ID <- as.numeric(seq(1:length(caribouShapefileSF[[nm]])))
-  caribouShapefileRas <- fasterize::fasterize(sf = caribouShapefileSF,
-                                              raster = rasterToMatch,
+  caribouShapefileSingleSF$ID <- as.numeric(seq(1:length(caribouShapefileSingleSF[[nm]])))
+  caribouShapefileSingleRas <- fasterize::fasterize(sf = caribouShapefileSingleSF,
+                                              raster = rasterToMatchR,
                                               field = "ID")
   # Remove the ID's that are not in the rasterized version of the sA (because they are too small)
-  availableInRas <- na.omit(unique(caribouShapefileRas[]))
-  polsToRemove <- setdiff(caribouShapefileSF[["ID"]], availableInRas)
-  caribouShapefileSF <- caribouShapefileSF[!caribouShapefileSF$ID %in% polsToRemove,]
+  availableInRas <- na.omit(unique(caribouShapefileSingleRas[]))
+  polsToRemove <- setdiff(caribouShapefileSingleSF[["ID"]], availableInRas)
+  caribouShapefileSingleSF <- caribouShapefileSingleSF[!caribouShapefileSingleSF$ID %in% polsToRemove,]
 
   ########### START EXTRACTION OF DATA #####################
 
-  listExtr <- do.call(what = funToLapply, args = alist(X = caribouShapefileSF[["ID"]],
+  listExtr <- do.call(what = funToLapply, args = alist(X = caribouShapefileSingleSF[["ID"]],
                                                        FUN = .extractDisturbancePolygon,
-                                                       caribouShapefile = caribouShapefile,
+                                                       caribouShapefileSingle = caribouShapefileSingle,
                                                        bufferedAnthropogenicDisturbance500m = bufferedAnthropogenicDisturbance500m,
                                                        makeAssertions = makeAssertions,
                                                        fireLayer = fireLayer,
-                                                       caribouShapefileRas = caribouShapefileRas,
+                                                       caribouShapefileSingleRas = caribouShapefileSingleRas,
                                                        nm = nm
                                                        ))
   #Naming both fire and anthro disturbances
-  names(listExtr) <- caribouShapefileSF[[nm]]
+  names(listExtr) <- caribouShapefileSingleSF[[nm]]
   return(listExtr)
 }

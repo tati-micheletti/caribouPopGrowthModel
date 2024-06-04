@@ -1,11 +1,11 @@
-.extractDisturbancePolygon <- function(pol, caribouShapefile,
+.extractDisturbancePolygon <- function(pol, caribouShapefileSingle,
                                        bufferedAnthropogenicDisturbance500m,
                                        makeAssertions,
                                        fireLayer,
-                                       caribouShapefileRas,
+                                       caribouShapefileSingleRas,
                                        nm){
 
-  polygonName <- caribouShapefile[[nm]][pol]
+  polygonName <- caribouShapefileSingle[[nm]][pol, ]
   print(paste0("Calculating disturbances for polygon ", polygonName))
   # 1. Make sure the layers are all masked for the study area to avoid problems
   # with NA's. The anthropogenic layer has been treated to remove water. We will
@@ -27,7 +27,7 @@
       }
     }
   }
-  fireLayer[is.na(templateRaster)] <- NA
+  fireLayer[is.na(templateRaster[])] <- NA
   
   #~~~~~~~~~~~~~~~~ ANTHROPOGENIC ~~~~~~~~~~~~~~~~#
   #
@@ -37,11 +37,12 @@
   # From the anthropo layer we calculate for each polygon the total amount of pixels that had disturbances
   # over the total number of pixels "available" to have it (non-NA when na is JUST WATER).
   # Then multiply by 100 to work with %.
-
+  if (is(bufferedAnthropogenicDisturbance500m, "SpatRaster"))
+    bufferedAnthropogenicDisturbance500m <- raster(bufferedAnthropogenicDisturbance500m)
   percentAnthopo <- calculatePixelsInaRule(ras = bufferedAnthropogenicDisturbance500m,
                                            rule = "> 0", # Need to be a character string of the rule
                                            pol = pol,
-                                           shp = caribouShapefileRas)
+                                           shp = caribouShapefileSingleRas)
   
   if (percentAnthopo$percentDisturbance < 0 | percentAnthopo$percentDisturbance > 100){
     print("Something went wrong with the anthropogenic distubance calculation. 
@@ -60,7 +61,7 @@
   percentFire <- calculatePixelsInaRule(ras = fireLayer,
                                         rule = "> 0", # Need to be a character string of the rule
                                         pol = pol,
-                                        shp = caribouShapefileRas)
+                                        shp = caribouShapefileSingleRas)
   
   if (percentFire$percentDisturbance < 0 | percentFire$percentDisturbance > 100){
     print("Something went wrong with the fire distubance calculation. 
@@ -110,7 +111,7 @@ Value is negative. Please debug.")
     
     testthat::expect_true(round(Total_dist, 5) <= round(percentFire$percentDisturbance + 
                                            percentAnthopo$percentDisturbance + 0.01, 5))
-    # Added a 0.01 because in some cases, when there is vritually no overlap  
+    # Added a 0.01 because in some cases, when there is virtually no overlap  
     # between the two disturbances, because fire is the one driving the number of non-NA's
     # (i.e. so we don't underestimate burned area ==> overestimate caribou!) and this might be
     # lower than anthropogenic (i.e. some places can't burn, like rocks/ice, but you might be

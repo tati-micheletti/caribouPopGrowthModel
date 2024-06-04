@@ -3,10 +3,12 @@ populationGrowthModel <-  function(femaleSurvivalModel,
                                    disturbances,
                                    currentTime,
                                    popModel,
-                                   outputDir,
-                                   useQuantiles = TRUE
+                                   useQuantiles = TRUE # Change this to another argument i.e., usePrecision if needed
                                    ){
 
+  usequantiles <- if (isTRUE(useQuantiles)) c(0.025, 0.975) else 
+    if (isFALSE(useQuantiles)) c(0, 1) else 
+      useQuantiles
   message(paste0("Forecasting caribou population growth for ", currentTime,"..."))
   covTable <- rbindlist(lapply(names(disturbances), function(shpfls){
     shpTable <- rbindlist(lapply(names(disturbances[[shpfls]]), function(pols){
@@ -18,51 +20,40 @@ populationGrowthModel <-  function(femaleSurvivalModel,
   }))
   femaleSurvivalPredictions <- rbindlist(lapply(X = names(femaleSurvivalModel),
                                       FUN = function(modelType) {
-if (useQuantiles){
-  # Below has been changed to be used with the newest caribouMetrics
-  responseList <- sampleRates(covTable = covTable,
-                              coefSample = femaleSurvivalModel[[modelType]][["coefSamples"]],
-                              coefValues = femaleSurvivalModel[[modelType]][["coefValues"]],
-                              modVer = modelType,
-                              resVar = "femaleSurvival",
-                              ignorePrecision = FALSE,
-                              # outputDir = outputDir,
-                              returnSample = FALSE,
-                              # useQuantiles = FALSE
-  )
 
-} else {
+  # Below has been changed to be used with the newest caribouMetrics -- Something is wrong in this function.
+  # Check with Eliot. In the meantime I will use my version. It is missing the beta distribution, but that doesn't
+  # change much the results.
+  # responseList <- sampleRates(covTable = covTable,
+  #                             coefSample = femaleSurvivalModel[[modelType]][["coefSamples"]],
+  #                             coefValues = femaleSurvivalModel[[modelType]][["coefValues"]],
+  #                             modelVersion = modelType,
+  #                             resVar = "femaleSurvival",
+  #                             ignorePrecision = FALSE,
+  #                             returnSample = FALSE,
+  #                             quantilesToUse = usequantiles) # Broken.
+
+
   responseList <- generatePopGrowthPredictions(covTable = covTable,
-                                               coeffTable = femaleSurvivalModel[[modelType]][["coeffTable"]],
-                                               coeffValues = femaleSurvivalModel[[modelType]][["coeffValues"]],
+                                               coeffTable = femaleSurvivalModel[[modelType]][["coefSamples"]],
+                                               coeffValues = femaleSurvivalModel[[modelType]][["coefValues"]],
                                                modelType =  modelType,
-                                               model = "femaleSurevival")
-}
+                                               model = "femaleSurvival",
+                                               usequantiles = usequantiles)
 
     responseList[, c("modelType", "model") := list(modelType, "femaleSurvival")]
     return(responseList)
   }))
   recruitmentPredictions <- rbindlist(lapply(X = names(recruitmentModel),
                                                 FUN = function(modelType) {
-if (useQuantiles){
-  # Below has been changed to be used with the newest caribouMetrics
-  responseList <- sampleRates(covTable = covTable,
-                              coefSample = recruitmentModel[[modelType]][["coefSamples"]],
-                              coefValues = recruitmentModel[[modelType]][["coefValues"]],
-                              modVer = modelType,
-                              resVar = "recruitment",
-                              ignorePrecision = FALSE,
-                              # outputDir = outputDir,
-                              returnSample = FALSE,
-                              # useQuantiles = FALSE
-                              )
-} else {
+
   responseList <- generatePopGrowthPredictions(covTable = covTable,
-                                               coeffTable = recruitmentModel[[modelType]][["coeffTable"]],
-                                               coeffValues = recruitmentModel[[modelType]][["coeffValues"]],
+                                               coeffTable = recruitmentModel[[modelType]][["coefSamples"]],
+                                               coeffValues = recruitmentModel[[modelType]][["coefValues"]],
                                                modelType =  modelType,
-                                               model = "recruitment")
-}
+                                               model = "recruitment",
+                                               usequantiles = usequantiles)
+
     responseList[, c("modelType", "model") := list(modelType, "recruitment")]
     return(responseList)
 }))
@@ -71,7 +62,7 @@ if (useQuantiles){
 
   combinations <- data.table(expand.grid(femaleSurvivalModel = names(femaleSurvivalModel),
                               recruitmentModel = names(recruitmentModel)))
-  if (useQuantiles){
+
     DT <- rbindlist(lapply(1:NROW(combinations), function(index){
 
       femSurvMod <- unique(combinations[[index, "femaleSurvivalModel"]])
@@ -87,60 +78,26 @@ if (useQuantiles){
 
       testthat::expect_true(NROW(SadF) == NROW(recr))
 
-      growth <- do.call(what = popModel, args = alist(SadF = SadF,
-                                                      recr = recr))
-      growthMin <-  do.call(what = popModel, args = alist(SadF = SadFmin,
-                                                          recr = recrmin))
-      growthMax <-  do.call(what = popModel, args = alist(SadF = SadFmax,
-                                                          recr = recrmax))
+      growth <- do.call(what = popModel, args = alist(SadF = as.numeric(unlist(SadF)),
+                                                      recr = as.numeric(unlist(recr))))
+      growthMin <-  do.call(what = popModel, args = alist(SadF = as.numeric(unlist(SadFmin)),
+                                                          recr = as.numeric(unlist(recrmin))))
+      growthMax <-  do.call(what = popModel, args = alist(SadF = as.numeric(unlist(SadFmax)),
+                                                          recr = as.numeric(unlist(recrmax))))
 
       # Melt DT to put recruitment and femaleSurvival results in the same table
       DTbind <- rbind(recruitmentPredictions[modelType == recrMod,],
                       femaleSurvivalPredictions[modelType == femSurvMod,])
-      DTbind <- dcast(DTbind, polygon + area ~ model, value.var = c("average", "stdErr"))
-      growthDT <- data.table(annualLambda = growth[["average"]],
-                             annualLambdaMax = growthMax[[1]],
-                             annualLambdaMin = growthMin[[1]],
-                             polygon = femaleSurvivalPredictions$polygon)
-      DTbind <- merge(DTbind, growthDT, by = "polygon")
+      DTbind <- dcast(DTbind, Herd + area ~ model, value.var = c("average", "stdErr"))
+      growthDT <- data.table(annualLambda = growth,
+                             annualLambdaMax = growthMax,
+                             annualLambdaMin = growthMin,
+                             Herd = femaleSurvivalPredictions$Herd)
+      DTbind <- merge(DTbind, growthDT, by = "Herd")
       DTbind[, femSurvMod_recrMod := paste(femSurvMod, recrMod, sep = "::")]
       return(DTbind)
     }))
-  } else {
-    DT <- rbindlist(lapply(1:NROW(combinations), function(index){
-      CI <- function(SD) qnorm(0.975)*SD
-      femSurvMod <- unique(combinations[[index, "femaleSurvivalModel"]])
-      recrMod <- unique(combinations[[index, "recruitmentModel"]])
-
-      SadF <- femaleSurvivalPredictions[modelType == femSurvMod, "average"]
-      SadFmin <- SadF - CI(femaleSurvivalPredictions[modelType == femSurvMod, "stdErr"])
-      SadFmax <- SadF + CI(femaleSurvivalPredictions[modelType == femSurvMod, "stdErr"])
-
-      recr <- recruitmentPredictions[modelType == recrMod, "average"]
-      recrmin <- recr - CI(recruitmentPredictions[modelType == recrMod, "stdErr"])
-      recrmax <- recr + CI(recruitmentPredictions[modelType == recrMod, "stdErr"])
-
-      testthat::expect_true(NROW(SadF) == NROW(recr))
-
-      growth <- do.call(what = popModel, args = alist(SadF = SadF,
-                                                      recr = recr))
-      growthMin <-  do.call(what = popModel, args = alist(SadF = SadFmin,
-                                                          recr = recrmin))
-      growthMax <-  do.call(what = popModel, args = alist(SadF = SadFmax,
-                                                          recr = recrmax))
-
-      # Melt DT to put recruitment and femaleSurvival results in the same table
-      DTbind <- rbind(recruitmentPredictions[modelType == recrMod,],
-                      femaleSurvivalPredictions[modelType == femSurvMod,])
-      DTbind <- dcast(DTbind, polygon + area ~ model, value.var = c("average", "stdErr"))
-      growthDT <- data.table(annualLambda = growth[["average"]],
-                             annualLambdaMax = growthMax[["average"]],
-                             annualLambdaMin = growthMin[["average"]],
-                             polygon = femaleSurvivalPredictions$polygon)
-      DTbind <- merge(DTbind, growthDT, by = "polygon")
-      DTbind[, femSurvMod_recrMod := paste(femSurvMod, recrMod, sep = "::")]
-      return(DTbind)
-    }))
-  }
+  
   return(DT)
 }
+

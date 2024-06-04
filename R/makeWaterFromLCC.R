@@ -21,7 +21,8 @@ makeWaterFromLCC <- function(year = 2019,
     landcoverMap[!is.na(landcoverMap[]) &
                landcoverMap[] != 20] <- NA
     landcoverMap[!is.na(landcoverMap[])] <- 1
-    terra::plot(landcoverMap); terra::plot(studyArea, add = TRUE, border = 'red')
+    if (interactive())
+      terra::plot(landcoverMap); terra::plot(studyArea, add = TRUE, border = 'red')
     return(landcoverMap)
   } else {
     if (whichMethod == "EOSD"){

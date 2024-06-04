@@ -2,7 +2,8 @@ createHistoricalFilesAll <- function(url,
                                      archive,
                                      targetFile,
                                      studyArea,
-                                     destinationPath){
+                                     destinationPath,
+                                     rerun = FALSE){
   
   historicalFiresAllPath <- file.path(destinationPath, "historicalFiresAll.shp")
   if (any(rerun, 
@@ -11,7 +12,7 @@ createHistoricalFilesAll <- function(url,
                                                 archive = archive,
                                                 targetFile = targetFile,
                                                 studyArea = studyArea,
-                                                fun = "sf::sf", 
+                                                fun = "terra::vect", 
                                                 destinationPath = destinationPath)
     # simplifying
     historicalFiresS <- historicalFires[, names(historicalFires) %in% c("YEAR", "DECADE")]
@@ -21,12 +22,11 @@ createHistoricalFilesAll <- function(url,
     historicalFiresDT[, fireYear := ifelse(YEAR == -9999, decadeYear, YEAR)]
     historicalFiresS$fireYear <- historicalFiresDT$fireYear
     historicalFires <- historicalFiresS[, "fireYear"]
-    historicalFiresAll <- projectInputs(historicalFires, targetCRS = as.character(raster::crs(studyArea)))
-    browser() # I think I can write with terra??
-    rgdal::writeOGR(obj = historicalFiresAll, dsn = destinationPath, 
-                    layer = basename(tools::file_path_sans_ext(historicalFiresAllPath)), 
-                    driver = "ESRI Shapefile")
+    historicalFiresAll <- terra::project(historicalFires, terra::crs(studyArea))
+    terra::writeVector(x = historicalFiresAll, filename = historicalFiresAllPath)
+    return(historicalFiresAll)
   } else {
-    historicalFiresAll <- raster::shapefile(historicalFiresAllPath)
+    historicalFiresAll <- terra::vect(historicalFiresAllPath)
+    return(historicalFiresAll)
   }
 }
